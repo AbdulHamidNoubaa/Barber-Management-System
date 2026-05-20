@@ -1,0 +1,125 @@
+{% extends "frontend/base.html" %}
+{% block title %}تقرير الأرباح والخزنة — {{ sys.business_name }}{% endblock %}
+{% block header_title %}تقرير الأرباح الموحد{% endblock %}
+{% block header_subtitle %}الربط بين إيرادات الشفتات وحركات الخزنة{% endblock %}
+
+{% block content %}
+<form method="get" class="filter-bar card" style="padding:16px 18px;margin-bottom:18px">
+  <div class="field">
+    <label>من تاريخ</label>
+    <input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" class="field-input">
+  </div>
+  <div class="field">
+    <label>إلى تاريخ</label>
+    <input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" class="field-input">
+  </div>
+  <button type="submit" class="btn btn-p">تحديث التقرير</button>
+</form>
+
+<div class="summary-grid">
+  <!-- إجمالي الإيرادات -->
+  <div class="dark-card kpi-card">
+    <div class="kpi-data">
+      <div class="kv">{{ total_revenue }} <small style="font-size:0.6em;">{{ sys.currency }}</small></div>
+      <div class="kl">إجمالي الإيرادات (الشفتات)</div>
+    </div>
+    <div class="kpi-icon blue">{% include "frontend/partials/icon.html" with name="currency" size=20 %}</div>
+  </div>
+
+  <!-- إجمالي المصروفات -->
+  <div class="kpi-card" style="border-right: 4px solid var(--danger);">
+    <div class="kpi-data">
+      <div class="kv" style="color: var(--danger);">{{ total_expenses }} <small style="font-size:0.6em;">{{ sys.currency }}</small></div>
+      <div class="kl">إجمالي المصروفات التشغيلية</div>
+    </div>
+    <div class="kpi-icon yellow">{% include "frontend/partials/icon.html" with name="trend-down" size=20 %}</div>
+  </div>
+
+  <!-- صافي الربح -->
+  <div class="kpi-card" style="border-right: 4px solid var(--green);">
+    <div class="kpi-data">
+      <div class="kv" style="color: var(--green);">{{ current_balance }} <small style="font-size:0.6em;">{{ sys.currency }}</small></div>
+      <div class="kl">صافي الربح المتوفر بالخزنة</div>
+    </div>
+    <div class="kpi-icon green">{% include "frontend/partials/icon.html" with name="scale" size=20 %}</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- تفاصيل الإيرادات -->
+  <div class="card-accent">
+    <div class="card-accent-inner">
+      <div class="section-title">تفاصيل الإيرادات حسب الطريقة</div>
+      <div style="display: flex; gap: 20px; margin-top: 15px;">
+        <div style="flex: 1; padding: 15px; background: #f0fdf4; border-radius: 12px; text-align: center;">
+          <div class="muted">إيراد نقدي</div>
+          <div style="font-size: 1.3rem; font-weight: 800; color: #166534;">{{ total_cash_revenue }}</div>
+        </div>
+        <div style="flex: 1; padding: 15px; background: #eff6ff; border-radius: 12px; text-align: center;">
+          <div class="muted">إيراد بطاقة</div>
+          <div style="font-size: 1.3rem; font-weight: 800; color: #1e40af;">{{ total_card_revenue }}</div>
+        </div>
+      </div>
+      <div style="margin-top: 15px; padding: 10px; background: #fffbeb; border-radius: 10px; display: flex; justify-content: space-between;">
+        <span class="muted">إجمالي عمولات الحلاقين المسددة:</span>
+        <b style="color: #92400e;">{{ total_commission }} {{ sys.currency }}</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- تفاصيل المصروفات -->
+  <div class="card-accent">
+    <div class="card-accent-inner">
+      <div class="section-title">المصروفات حسب التصنيف</div>
+      <div class="tbl-wrap" style="max-height: 200px;">
+        <table>
+          <tbody>
+            {% for exp in expenses_by_category %}
+            <tr>
+              <td>{{ exp.category__name|default:"عام" }}</td>
+              <td style="text-align: left;"><b>{{ exp.total }}</b> <small>{{ sys.currency }}</small></td>
+            </tr>
+            {% empty %}
+            <tr><td class="empty">لا توجد مصروفات مسجلة.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card-accent" style="margin-top: 18px;">
+  <div class="card-accent-inner">
+    <div class="section-title">سجل إغلاقات الشفتات في هذه الفترة</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th>الشفت</th>
+            <th>الإيراد الإجمالي</th>
+            <th>نقدي</th>
+            <th>بطاقة</th>
+            <th>العمولات</th>
+            <th>بواسطة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in closures %}
+          <tr>
+            <td>{{ c.closed_at|date:"d/m/Y H:i" }}</td>
+            <td><b>{{ c.shift.name|default:"#"|add:c.shift.id }}</b></td>
+            <td><span class="price-tag">{{ c.total_revenue }}</span></td>
+            <td>{{ c.total_cash }}</td>
+            <td>{{ c.total_card }}</td>
+            <td style="color: var(--danger);">{{ c.total_barber_commission }}</td>
+            <td class="muted">{{ c.closed_by.username }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

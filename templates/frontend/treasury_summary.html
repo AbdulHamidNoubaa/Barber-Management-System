@@ -1,0 +1,54 @@
+{% extends "frontend/base.html" %}
+{% block title %}الملخص اليومي — {{ date|date:"d/m/Y" }}{% endblock %}
+{% block header_title %}الملخص اليومي للخزنة{% endblock %}
+
+{% block content %}
+<div class="summary-grid">
+  <div class="kpi-card">
+    <div class="kv">{{ revenue }}</div>
+    <div class="kl">إيراد اليوم</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kv" style="color:var(--danger)">{{ expenses }}</div>
+    <div class="kl">مصروفات اليوم</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kv" style="color:var(--green)">{{ balance }}</div>
+    <div class="kl">الرصيد المتبقي</div>
+  </div>
+</div>
+
+<div class="card-accent">
+  <div class="card-accent-inner">
+    <div class="section-title">تفاصيل مصروفات اليوم</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>الوقت</th>
+            <th>التصنيف</th>
+            <th>المبلغ</th>
+            <th>الطريقة</th>
+            <th>بواسطة</th>
+            <th>ملاحظة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in expense_details %}
+          <tr>
+            <td class="muted">{{ e.created_at|time:"H:i" }}</td>
+            <td><b>{{ e.category.name }}</b></td>
+            <td style="color:var(--danger); font-weight:800">{{ e.amount }}</td>
+            <td>{{ e.get_payment_method_display }}</td>
+            <td>{{ e.recorded_by.username }}</td>
+            <td class="muted">{{ e.description }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="empty">لا توجد مصروفات مسجلة لليوم.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

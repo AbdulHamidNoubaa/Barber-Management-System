@@ -1,0 +1,117 @@
+{% extends "frontend/base.html" %}
+{% block title %}سجل عملياتي — {{ sys.business_name|default:"Barber Pro" }}{% endblock %}
+{% block header_title %}سجل عملياتي{% endblock %}
+{% block header_subtitle %}منذ {{ join_date|date:"Y/m/d" }} — تصفية بالتاريخ{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>
+    <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    ملخص أدائك
+  </h1>
+  <p>إجماليات ضمن الفترة المحددة بالتصفية أدناه.</p>
+</div>
+
+<div class="kpi-grid">
+  <div class="dark-card kpi-card">
+    <div class="kpi-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+    <div class="kpi-data"><div class="kv">{{ total_all }}</div><div class="kl">إجمالي التذاكر</div></div>
+  </div>
+  <div class="dark-card kpi-card">
+    <div class="kpi-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+    <div class="kpi-data"><div class="kv">{{ total_completed }}</div><div class="kl">مكتمل</div></div>
+  </div>
+  <div class="dark-card kpi-card">
+    <div class="kpi-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+    <div class="kpi-data"><div class="kv">{{ total_cancelled }}</div><div class="kl">ملغي</div></div>
+  </div>
+  <div class="dark-card kpi-card">
+    <div class="kpi-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg></div>
+    <div class="kpi-data"><div class="kv">{{ total_revenue|floatformat:0 }} <small style="font-size:.55em;opacity:.7">{{ sys.currency|default:"د" }}</small></div><div class="kl">إجمالي الإيراد</div></div>
+  </div>
+  <div class="dark-card kpi-card">
+    <div class="kpi-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></div>
+    <div class="kpi-data"><div class="kv">{{ total_commission|floatformat:0 }} <small style="font-size:.55em;opacity:.7">{{ sys.currency|default:"د" }}</small></div><div class="kl">إجمالي عمولتي</div></div>
+  </div>
+</div>
+
+<div class="card-accent">
+  <div class="card-accent-inner">
+    <div class="section-title">
+      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      تصفية التواريخ
+    </div>
+    <form method="get" class="filter-bar">
+      <div class="field">
+        <label>من تاريخ</label>
+        <input type="date" name="from" value="{{ filter_from }}" class="field-input">
+      </div>
+      <div class="field">
+        <label>إلى تاريخ</label>
+        <input type="date" name="to" value="{{ filter_to }}" class="field-input">
+      </div>
+      <button class="btn btn-p" type="submit">تطبيق</button>
+      <a href="{% url 'frontend:barber_history' %}" class="btn btn-o">إعادة التعيين</a>
+    </form>
+  </div>
+</div>
+
+{% if daily_breakdown %}
+<div class="card">
+  <div class="card-title">
+    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+    تفصيل يومي
+    <span class="badge b-wait">{{ daily_breakdown|length }} يوم</span>
+  </div>
+  {% for day in daily_breakdown %}
+  <div class="day-row">
+    <div class="dt">{{ day.day|date:"d/m/Y" }}<small>{{ day.day|date:"l" }}</small></div>
+    <div class="stats">
+      <span>التذاكر: <b>{{ day.count }}</b></span>
+      <span>الإيراد: <b>{{ day.revenue|default_if_none:0|floatformat:0 }}</b> {{ sys.currency|default:"د" }}</span>
+      <span>العمولة: <b>{{ day.commission|default_if_none:0|floatformat:0 }}</b> {{ sys.currency|default:"د" }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card-accent">
+  <div class="card-accent-inner">
+    <div class="card-title">
+      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+      التذاكر التفصيلية
+      <span class="badge b-wait">{{ tickets|length }}</span>
+    </div>
+    {% if tickets %}
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>الزبون</th><th>الوصف</th><th>الحالة</th><th>الدفع</th><th>المبلغ</th><th>عمولتي</th><th>أُنشئت</th><th>اكتملت</th></tr></thead>
+        <tbody>
+          {% for t in tickets %}
+          <tr>
+            <td style="font-weight:600;color:var(--muted)">{{ t.id }}</td>
+            <td style="font-weight:700">{{ t.customer.name }}</td>
+            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:.78rem">{{ t.description|default:"—" }}</td>
+            <td>
+              {% if t.status == "WAITING" %}<span class="badge b-wait">انتظار</span>
+              {% elif t.status == "IN_PROGRESS" %}<span class="badge b-run">تنفيذ</span>
+              {% elif t.status == "COMPLETED" %}<span class="badge b-done">مكتمل</span>
+              {% elif t.status == "CANCELLED" %}<span class="badge b-cancel">ملغي</span>{% endif %}
+            </td>
+            <td>{% if t.payment_method == "CASH" %}<span class="pay-badge cash">نقدي</span>{% elif t.payment_method == "CARD" %}<span class="pay-badge card">بطاقة</span>{% else %}—{% endif %}</td>
+            <td style="font-weight:700">{% if t.total > 0 %}{{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}{% else %}—{% endif %}</td>
+            <td style="color:var(--green);font-weight:800">{% if t.barber_commission_total > 0 %}{{ t.barber_commission_total|floatformat:0 }} {{ sys.currency|default:"د" }}{% else %}—{% endif %}</td>
+            <td style="font-size:.74rem;color:var(--muted)">{{ t.created_at|date:"Y/m/d H:i" }}</td>
+            <td style="font-size:.74rem;color:var(--muted)">{% if t.completed_at %}{{ t.completed_at|date:"Y/m/d H:i" }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">لا توجد تذاكر في الفترة المحددة</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

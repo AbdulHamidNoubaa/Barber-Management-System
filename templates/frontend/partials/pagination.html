@@ -1,0 +1,50 @@
+{% with pparam=page_param|default:"page" %}
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+<nav class="pager" aria-label="تصفح الصفحات">
+  <div class="pager-info">
+    عرض
+    <strong>{{ page_obj.start_index }}</strong>–<strong>{{ page_obj.end_index }}</strong>
+    من <strong>{{ page_obj.paginator.count }}</strong>
+  </div>
+  <ul class="pager-list">
+    {% if page_obj.has_previous %}
+    <li>
+      <a class="pager-btn" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ pparam }}=1" title="الأولى">«</a>
+    </li>
+    <li>
+      <a class="pager-btn" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ pparam }}={{ page_obj.previous_page_number }}" title="السابقة">‹</a>
+    </li>
+    {% else %}
+    <li><span class="pager-btn disabled">«</span></li>
+    <li><span class="pager-btn disabled">‹</span></li>
+    {% endif %}
+
+    {% for num in page_obj.paginator.get_elided_page_range %}
+      {% if num == page_obj.paginator.ELLIPSIS %}
+      <li><span class="pager-btn disabled">…</span></li>
+      {% elif num == page_obj.number %}
+      <li><span class="pager-btn active" aria-current="page">{{ num }}</span></li>
+      {% else %}
+      <li><a class="pager-btn" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ pparam }}={{ num }}">{{ num }}</a></li>
+      {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <li>
+      <a class="pager-btn" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ pparam }}={{ page_obj.next_page_number }}" title="التالية">›</a>
+    </li>
+    <li>
+      <a class="pager-btn" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ pparam }}={{ page_obj.paginator.num_pages }}" title="الأخيرة">»</a>
+    </li>
+    {% else %}
+    <li><span class="pager-btn disabled">›</span></li>
+    <li><span class="pager-btn disabled">»</span></li>
+    {% endif %}
+  </ul>
+</nav>
+{% elif page_obj and page_obj.paginator.count %}
+<div class="pager pager-single">
+  <span class="pager-info">إجمالي <strong>{{ page_obj.paginator.count }}</strong> سجل</span>
+</div>
+{% endif %}
+{% endwith %}

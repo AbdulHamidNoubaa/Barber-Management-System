@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>وصل رقم {{ receipt.receipt_number }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap">
+  <style>
+    body { font-family: 'Cairo', sans-serif; margin: 0; padding: 20px; color: #000; }
+    .receipt-box { max-width: 400px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px; }
+    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px dashed #eee; padding-bottom: 10px; }
+    .header h1 { margin: 0; font-size: 1.5rem; }
+    .header p { margin: 5px 0; font-size: 0.9rem; color: #666; }
+    
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
+    .info-label { font-weight: 700; }
+    
+    .items-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    .items-table th { border-bottom: 2px solid #000; text-align: right; padding: 5px; }
+    .items-table td { padding: 8px 5px; border-bottom: 1px solid #eee; }
+    
+    .total-section { margin-top: 15px; border-top: 2px solid #000; padding-top: 10px; }
+    .total-row { display: flex; justify-content: space-between; font-weight: 800; font-size: 1.2rem; }
+    
+    .footer { text-align: center; margin-top: 30px; font-size: 0.8rem; border-top: 1px dashed #eee; padding-top: 10px; }
+    
+    @media print {
+      body { padding: 0; }
+      .receipt-box { border: none; width: 100%; max-width: 100%; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body onload="window.print()">
+  <div class="receipt-box">
+    <div class="header">
+      <h1>{{ sys.business_name|default:"Barber Pro" }}</h1>
+      <p>{{ sys.business_address|default:"نظام إدارة صالون الحلاقة" }}</p>
+      <p>رقم الهاتف: {{ sys.business_phone|default:"—" }}</p>
+    </div>
+
+    <div class="info-row">
+      <span class="info-label">رقم الوصل:</span>
+      <span>{{ receipt.receipt_number }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">التاريخ:</span>
+      <span>{{ receipt.created_at|date:"d/m/Y H:i" }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">العميل:</span>
+      <span>{{ receipt.customer_name }}</span>
+    </div>
+    
+    <div style="margin: 20px 0; font-weight: 700; border-bottom: 1px solid #eee; padding-bottom: 5px;">تفاصيل الخدمة:</div>
+    <p style="font-size: 0.9rem; line-height: 1.6;">{{ receipt.items_description|linebreaksbr }}</p>
+
+    <div class="total-section">
+      <div class="total-row">
+        <span>الإجمالي:</span>
+        <span>{{ receipt.amount }} {{ sys.currency|default:"د" }}</span>
+      </div>
+      <div class="info-row" style="margin-top: 5px;">
+        <span class="info-label">طريقة الدفع:</span>
+        <span>{{ receipt.get_payment_method_display }}</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>شكراً لزيارتكم!</p>
+      <p>صادر بواسطة: {{ receipt.issued_by.get_full_name|default:receipt.issued_by.username }}</p>
+      <div class="no-print" style="margin-top: 20px;">
+        <button onclick="window.print()" style="padding: 10px 20px; cursor: pointer;">إعادة الطباعة</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

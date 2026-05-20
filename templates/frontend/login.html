@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول — {{ sys.business_name|default:"Barber Pro" }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:       #1e40af;
+      --primary-2:     #1d4ed8;
+      --primary-light: #dbeafe;
+      --primary-glow:  rgba(30,64,175,.18);
+      --bg:            #f0f4f8;
+      --surface:       #ffffff;
+      --text:          #0f172a;
+      --text-2:        #334155;
+      --muted:         #64748b;
+      --border:        #e2e8f0;
+      --success:       #059669;
+      --danger:        #dc2626;
+      --danger-light:  #fee2e2;
+      --grad-primary:  linear-gradient(135deg,#1e40af 0%,#1d4ed8 100%);
+      --radius-sm:     8px;
+      --radius-md:     12px;
+      --radius-lg:     16px;
+      --radius-xl:     22px;
+      --shadow-card:   0 20px 40px -10px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: "Cairo", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background: var(--bg);
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Decorative background shapes */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(30,64,175,.06) 0%, transparent 70%);
+      top: -200px; right: -200px;
+    }
+
+    body::after {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(30,64,175,.04) 0%, transparent 70%);
+      bottom: -150px; left: -150px;
+    }
+
+    /* ── SPLIT LAYOUT ── */
+    .login-wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 420px;
+      padding: 1rem;
+      animation: slideUp .4s cubic-bezier(.22,.68,0,1.2);
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── CARD ── */
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+
+    /* Top accent strip */
+    .card-strip {
+      height: 4px;
+      background: var(--grad-primary);
+    }
+
+    .card-body { padding: 2.25rem 2.25rem 2rem; }
+
+    /* ── BRAND ── */
+    .brand-center {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .brand-icon {
+      width: 72px; height: 72px;
+      background: var(--grad-primary);
+      border-radius: var(--radius-lg);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: .9rem;
+      box-shadow: 0 8px 24px var(--primary-glow);
+    }
+
+    .brand-icon img {
+      max-width: 52px;
+      max-height: 52px;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+    }
+
+    .brand-name {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: -.025em;
+      line-height: 1.2;
+    }
+
+    .brand-sub {
+      font-size: .8rem;
+      color: var(--muted);
+      font-weight: 500;
+      margin-top: .3rem;
+    }
+
+    /* ── MESSAGES ── */
+    .alert {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .65rem .9rem;
+      border-radius: var(--radius-md);
+      font-size: .82rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      animation: fadeIn .25s ease-out;
+    }
+
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+    .alert-error {
+      background: var(--danger-light);
+      color: var(--danger);
+      border: 1px solid #fca5a5;
+    }
+
+    .alert-success {
+      background: #d1fae5;
+      color: var(--success);
+      border: 1px solid #a7f3d0;
+    }
+
+    /* ── FORM ── */
+    .form-group {
+      margin-bottom: 1.1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--text-2);
+      margin-bottom: .35rem;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      top: 50%; right: .85rem;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .input-icon .ui-icon { stroke: currentColor; }
+    .alert-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.1rem;
+      height: 1.1rem;
+      border-radius: 50%;
+      background: var(--danger);
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: .65rem 2.4rem .65rem .9rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      background: #f8fafc;
+      color: var(--text);
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 500;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+
+    .form-input::placeholder { color: var(--muted); font-weight: 400; }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    /* ── SUBMIT BUTTON ── */
+    .btn-login {
+      width: 100%;
+      padding: .78rem;
+      margin-top: 1.35rem;
+      background: var(--grad-primary);
+      border: none;
+      border-radius: var(--radius-md);
+      color: #fff;
+      font-family: inherit;
+      font-size: .95rem;
+      font-weight: 800;
+      cursor: pointer;
+      letter-spacing: .01em;
+      box-shadow: 0 4px 14px var(--primary-glow);
+      transition: filter .15s, transform .15s, box-shadow .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+    }
+
+    .btn-login:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px var(--primary-glow);
+    }
+
+    .btn-login:active { transform: translateY(0); filter: brightness(.97); }
+
+    /* ── FOOTER ── */
+    .card-footer {
+      border-top: 1px solid var(--border);
+      padding: .9rem 2.25rem;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-time {
+      font-size: .73rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .footer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      font-size: .7rem;
+      font-weight: 700;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: .2rem .55rem;
+      border-radius: 999px;
+    }
+
+    /* ── POWERED BY ── */
+    .powered {
+      text-align: center;
+      margin-top: 1.1rem;
+      font-size: .72rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    @media (max-width: 480px) {
+      .card-body { padding: 1.75rem 1.5rem 1.5rem; }
+      .brand-icon { width: 60px; height: 60px; font-size: 1.6rem; }
+      .brand-name { font-size: 1.15rem; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="login-wrap">
+
+    <div class="login-card">
+      <div class="card-strip"></div>
+
+      <div class="card-body">
+
+        <!-- Brand -->
+        <div class="brand-center">
+          <div class="brand-icon">
+            {% if sys.logo %}
+              <img src="/media/{{ sys.logo }}" alt="{{ sys.business_name }}">
+            {% else %}
+              💈
+            {% endif %}
+          </div>
+          <h1 class="brand-name">{{ sys.business_name|default:"Barber Pro" }}</h1>
+          <p class="brand-sub">نظام إدارة محل الحلاقة الاحترافي</p>
+        </div>
+
+        <!-- Error messages -->
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-error">
+          <span class="alert-icon" aria-hidden="true">!</span>
+          {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Login form -->
+        <form method="post" action="" autocomplete="on">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <label class="form-label" for="id_username">اسم المستخدم</label>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true">{% include "frontend/partials/icon.html" with name="user" size=16 %}</span>
+              <input
+                class="form-input"
+                id="id_username"
+                name="username"
+                type="text"
+                required
+                placeholder="أدخل اسم المستخدم"
+                autocomplete="username"
+                autofocus>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="id_password">كلمة المرور</label>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true">{% include "frontend/partials/icon.html" with name="lock" size=16 %}</span>
+              <input
+                class="form-input"
+                id="id_password"
+                name="password"
+                type="password"
+                required
+                placeholder="••••••••"
+                autocomplete="current-password">
+            </div>
+          </div>
+
+          <button type="submit" class="btn-login">
+            <span>دخول</span>
+            <span>←</span>
+          </button>
+        </form>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="card-footer">
+        <span class="footer-time">
+          {{ weekday_ar }} {{ now_local|date:"d/m/Y" }}
+          {% if now_local %}· {{ now_local|time:"H:i" }}{% endif %}
+        </span>
+        <span class="footer-badge">دخول آمن</span>
+      </div>
+    </div>
+
+    <p class="powered">Barber Pro &copy; {{ now_local|date:"Y" }}</p>
+  </div>
+  {% include "frontend/partials/icon_sprite.html" %}
+</body>
+</html>

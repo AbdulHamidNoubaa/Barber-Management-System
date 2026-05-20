@@ -1,0 +1,71 @@
+{% extends "frontend/base.html" %}
+{% block title %}معاملات {{ barber.display_name }} — {{ sys.business_name|default:"Barber Pro" }}{% endblock %}
+{% block header_title %}معاملات الحلاق{% endblock %}
+{% block header_subtitle %}{{ barber.display_name }} · عمولة {{ barber.default_commission_pct|floatformat:0 }}%{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="ph-text">
+    <h2 style="margin:0;font-size:1.05rem;font-weight:800">جميع معاملات الحلاق</h2>
+    <p style="margin:6px 0 0">إجمالي <strong>{% if tickets_page %}{{ tickets_page.paginator.count }}{% else %}0{% endif %}</strong> معاملة</p>
+  </div>
+  <div class="ph-time">
+    <b>{{ now_local|time:"H:i" }}</b>
+    {{ weekday_ar }} {{ now_local|date:"d/m/Y" }}
+  </div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center">
+  <a href="{% url 'frontend:queue' %}" class="btn btn-o btn-sm">العودة للطابور</a>
+  <form method="get" class="filter-bar card" style="margin:0;padding:.5rem .75rem;flex:1;min-width:200px">
+    <input type="hidden" name="barber" value="{{ barber.pk }}">
+    <div class="field" style="margin:0">
+      <label>الحالة</label>
+      <select name="status" class="field-input">
+        <option value="">الكل</option>
+        {% for val, label in ticket_status_choices %}
+        <option value="{{ val }}" {% if filter_status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-p btn-sm">تصفية</button>
+  </form>
+</div>
+
+<div class="card-accent">
+  <div class="card-accent-inner">
+    <div class="section-title">
+      قائمة المعاملات
+      <span class="badge b-wait" style="margin-right:8px">{% if tickets_page %}{{ tickets_page.paginator.count }}{% else %}0{% endif %}</span>
+    </div>
+    {% if tickets_page.object_list %}
+    <div class="tbl-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>الزبون</th><th>العمولة</th><th>المبلغ</th><th>ربح الحلاق</th><th>الحالة</th><th>الوقت</th></tr></thead>
+        <tbody>
+          {% for t in tickets_page %}
+          <tr>
+            <td style="font-weight:700">{{ t.customer.name }}</td>
+            <td><span style="font-size:.72rem;font-weight:800;color:var(--success)">{{ t.barber.default_commission_pct|floatformat:0 }}%</span></td>
+            <td>{% if t.total > 0 %}<span class="price-tag">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
+            <td>{% if t.barber_commission_total > 0 %}<span style="font-weight:800;color:var(--success)">{{ t.barber_commission_total|floatformat:0 }} {{ sys.currency|default:"د" }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
+            <td>
+              {% if t.status == "WAITING" %}<span class="badge b-wait">في الانتظار</span>
+              {% elif t.status == "IN_PROGRESS" %}<span class="badge b-run">قيد التنفيذ</span>
+              {% elif t.status == "COMPLETED" %}<span class="badge b-done">مكتمل</span>
+              {% elif t.status == "CANCELLED" %}<span class="badge b-cancel">ملغى</span>
+              {% else %}<span class="badge">{{ t.status }}</span>{% endif %}
+            </td>
+            <td style="color:var(--muted);font-size:.76rem;white-space:nowrap">{{ t.created_at|date:"d/m/Y H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "frontend/partials/pagination.html" with page_obj=tickets_page query_string=query_string %}
+    {% else %}
+    <div class="empty" style="padding:20px">لا توجد معاملات مسجلة لهذا الحلاق.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

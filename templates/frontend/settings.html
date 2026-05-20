@@ -1,0 +1,734 @@
+{% extends "frontend/base.html" %}
+{% block title %}الإعدادات — {{ sys.business_name|default:"Barber Pro" }}{% endblock %}
+{% block header_title %}الإعدادات{% endblock %}
+{% block header_subtitle %}مركز إدارة المحل · الفريق · الشفت{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ── Settings shell ── */
+.settings-app{display:grid;grid-template-columns:240px minmax(0,1fr);gap:1.25rem;align-items:start;}
+.settings-nav{position:sticky;top:calc(var(--nav-h) + 1rem);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;}
+.settings-nav-hd{padding:1rem 1rem .75rem;border-bottom:1px solid var(--border-light);background:linear-gradient(180deg,#f8fafc 0%,#fff 100%);}
+.settings-nav-hd h3{font-size:.82rem;font-weight:800;color:var(--text);}
+.settings-nav-hd p{font-size:.7rem;color:var(--muted);margin-top:.15rem;line-height:1.4;}
+.settings-nav-list{padding:.45rem;}
+.settings-nav-item{display:flex;align-items:center;gap:.55rem;width:100%;padding:.6rem .75rem;border:none;border-radius:var(--radius-md);background:transparent;color:var(--text-2);font-size:.78rem;font-weight:700;text-align:right;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s;}
+.settings-nav-item:hover{background:var(--bg);color:var(--text);}
+.settings-nav-item.active{background:var(--primary-light);color:var(--primary);box-shadow:inset 3px 0 0 var(--primary);}
+.settings-nav-icon{width:28px;height:28px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--bg);color:var(--muted);}
+.settings-nav-icon .ui-icon{width:16px;height:16px;}
+.settings-nav-item.active .settings-nav-icon{background:#fff;color:var(--primary);}
+.st-card-title .ui-icon{width:18px;height:18px;stroke:var(--primary);}
+.st-mini-hd .ui-icon{width:15px;height:15px;flex-shrink:0;}
+.u-avatar{font-size:.85rem;letter-spacing:-.02em;}
+.brand-preview .brand-placeholder{width:56px;height:56px;border-radius:var(--radius-md);background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted-light);}
+.brand-preview .brand-placeholder .ui-icon{width:28px;height:28px;}
+.settings-nav-text{flex:1;min-width:0;}
+.settings-nav-label{display:block;line-height:1.25;}
+.settings-nav-hint{font-size:.65rem;font-weight:600;color:var(--muted);margin-top:.05rem;}
+.settings-nav-item.active .settings-nav-hint{color:var(--primary);opacity:.85;}
+.settings-nav-badge{font-size:.65rem;font-weight:800;padding:.12rem .45rem;border-radius:999px;background:var(--bg);color:var(--muted);}
+.settings-nav-item.active .settings-nav-badge{background:var(--primary);color:#fff;}
+.settings-nav-ft{padding:.65rem .85rem;border-top:1px solid var(--border-light);font-size:.68rem;color:var(--muted);line-height:1.45;}
+.settings-nav-ft strong{color:var(--text);}
+
+.settings-main{min-width:0;}
+.settings-hero{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.2rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:1rem;box-shadow:var(--shadow-xs);}
+.settings-hero h2{font-size:1rem;font-weight:800;color:var(--text);}
+.settings-hero p{font-size:.76rem;color:var(--muted);margin-top:.2rem;max-width:32rem;}
+.settings-kpis{display:flex;gap:.5rem;flex-wrap:wrap;}
+.settings-kpi{padding:.45rem .75rem;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--bg);font-size:.7rem;font-weight:700;color:var(--muted);white-space:nowrap;}
+.settings-kpi b{display:block;font-size:.88rem;color:var(--text);margin-bottom:.05rem;}
+.settings-kpi.on{border-color:#86efac;background:var(--success-light);}
+.settings-kpi.on b{color:var(--success);}
+.settings-kpi.warn{border-color:#fcd34d;background:var(--warning-light);}
+.settings-kpi.warn b{color:var(--warning);}
+
+.settings-panel{display:none;animation:stFadeIn .25s ease-out;}
+.settings-panel.active{display:block;}
+@keyframes stFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.st-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-xs);overflow:hidden;margin-bottom:1rem;}
+.st-card:last-child{margin-bottom:0;}
+.st-card::before{content:'';display:block;height:3px;background:var(--grad-primary);}
+.st-card-hd{padding:1rem 1.25rem;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#f8fafc 0%,#fff 100%);}
+.st-card-title{font-weight:800;font-size:.92rem;color:var(--text);display:flex;align-items:center;gap:.45rem;}
+.st-card-desc{font-size:.74rem;color:var(--muted);margin-top:.25rem;line-height:1.45;}
+.st-card-body{padding:1.15rem 1.25rem;}
+
+.st-grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:.85rem 1.1rem;}
+.st-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+@media(max-width:900px){.st-grid3{grid-template-columns:1fr;}}
+@media(max-width:640px){.st-grid2{grid-template-columns:1fr;}}
+
+.st-field{display:flex;flex-direction:column;gap:.3rem;}
+.st-field label{font-size:.73rem;font-weight:700;color:var(--text-2);}
+.st-field input,.st-field select,.st-field textarea{padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.82rem;background:#fff;transition:border-color .15s,box-shadow .15s;}
+.st-field input:focus,.st-field select:focus,.st-field textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);}
+
+.st-mini{border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;background:#fafbfc;transition:box-shadow .2s,transform .2s;}
+.st-mini:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.st-mini-hd{padding:.7rem .95rem;font-weight:800;font-size:.8rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.4rem;}
+.st-mini-hd.admin{border-right:3px solid var(--primary);background:var(--primary-light);color:var(--primary);}
+.st-mini-hd.cashier{border-right:3px solid var(--warning);background:var(--warning-light);color:var(--warning);}
+.st-mini-hd.barber{border-right:3px solid var(--success);background:var(--success-light);color:var(--success);}
+.st-mini-body{padding:.9rem .95rem;}
+.st-desc{font-size:.73rem;color:var(--muted);margin-bottom:.75rem;line-height:1.5;}
+.err-box{font-size:.74rem;color:var(--danger);background:var(--danger-light);border:1px solid #fca5a5;padding:.5rem .75rem;border-radius:var(--radius-sm);margin-bottom:.6rem;}
+
+.shift-pill{padding:.85rem 1rem;border-radius:var(--radius-md);font-size:.8rem;line-height:1.55;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;}
+.shift-pill.warn{background:linear-gradient(135deg,#fffbeb,#fef3c7);border-color:#fcd34d;}
+
+.tpl-card{border:1px solid var(--border);border-radius:var(--radius-md);padding:.9rem 1rem;margin-bottom:.7rem;background:#fafbfc;transition:border-color .15s;}
+.tpl-card:hover{border-color:#cbd5e1;}
+.tpl-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap;}
+.tpl-name{font-weight:800;font-size:.85rem;}
+.tpl-meta{font-size:.72rem;color:var(--muted);margin-top:.15rem;}
+.cashier-picks{display:flex;flex-wrap:wrap;gap:.5rem .9rem;margin-top:.5rem;}
+.cashier-picks label{display:flex;align-items:center;gap:.35rem;font-size:.75rem;cursor:pointer;font-weight:600;padding:.25rem .5rem;border-radius:var(--radius-sm);border:1px solid transparent;transition:.15s;}
+.cashier-picks label:has(input:checked){background:var(--primary-light);border-color:#bfdbfe;color:var(--primary);}
+
+.st-tbl{width:100%;border-collapse:collapse;font-size:.8rem;}
+.st-tbl th{background:#f8fafc;padding:.6rem .9rem;text-align:right;font-size:.7rem;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border);}
+.st-tbl td{padding:.65rem .9rem;border-top:1px solid var(--border-light);vertical-align:middle;}
+.st-tbl tbody tr:hover td{background:#fafbfe;}
+.tag-yes{color:var(--success);font-weight:800;}
+.tag-no{color:var(--danger);font-weight:700;}
+
+.st-barber-pct{display:inline-flex;align-items:center;padding:.28rem .6rem;border-radius:999px;background:var(--success-light);color:var(--success);font-weight:800;font-size:.8rem;}
+.st-barber-pct.zero{background:#f1f5f9;color:var(--muted);}
+.st-barber-inactive td{opacity:.65;background:#fafafa;}
+.st-barber-acct{font-size:.72rem;color:var(--muted);}
+.st-barber-pct-input{max-width:5.5rem;text-align:center;}
+
+.brand-preview{display:flex;align-items:center;gap:1rem;padding:1rem;background:var(--bg);border-radius:var(--radius-md);border:1px dashed var(--border);margin-bottom:1rem;}
+.brand-preview img{max-height:56px;max-width:160px;object-fit:contain;border-radius:8px;box-shadow:var(--shadow-sm);}
+.btn-block{width:100%;}
+
+/* Users */
+.users-toolbar{display:flex;flex-wrap:wrap;gap:.65rem;align-items:center;justify-content:space-between;padding:0 1.25rem 1rem;}
+.users-search{flex:1;min-width:180px;max-width:320px;}
+.users-search input{width:100%;padding:.5rem .75rem .5rem 2.2rem;border:1.5px solid var(--border);border-radius:var(--radius-md);font-size:.8rem;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242 1.1a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat right .65rem center;}
+.user-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:1rem;padding:0 1.25rem 1.25rem;}
+.user-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;transition:box-shadow .2s,transform .2s,border-color .2s;cursor:pointer;}
+.user-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);border-color:#cbd5e1;}
+.user-card.hidden-by-filter{display:none!important;}
+.user-card-top{padding:1.1rem 1.1rem .75rem;display:flex;align-items:flex-start;gap:.85rem;}
+.u-avatar{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:900;color:#fff;flex-shrink:0;}
+.u-avatar.admin{background:var(--grad-primary);}
+.u-avatar.cashier{background:linear-gradient(135deg,#d97706,#f59e0b);}
+.u-avatar.barber{background:var(--grad-success);}
+.u-avatar.other{background:linear-gradient(135deg,#6366f1,#818cf8);}
+.u-name{font-weight:800;font-size:.88rem;}
+.u-username{font-size:.72rem;color:var(--muted);margin-top:.1rem;}
+.user-card-meta{padding:.5rem 1.1rem;border-top:1px solid var(--border-light);background:#f8fafc;display:flex;gap:.4rem;flex-wrap:wrap;}
+.user-card-actions{padding:.65rem 1.1rem;border-top:1px solid var(--border);display:flex;gap:.4rem;flex-wrap:wrap;}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1000;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;animation:fadeIn .2s ease-out;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:#fff;border-radius:var(--radius-xl);width:100%;max-width:520px;box-shadow:0 25px 50px rgba(0,0,0,.18);overflow:hidden;animation:slideUp .22s ease-out;}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
+.modal-header{padding:1rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#f8fafc,#fff);}
+.modal-title{font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:.55rem;}
+.modal-close{width:32px;height:32px;border-radius:50%;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-size:.9rem;color:var(--muted);}
+.modal-close:hover{background:var(--danger-light);color:var(--danger);}
+.modal-body{padding:1.2rem;}
+.modal-profile-top{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding:.85rem 1rem;background:var(--bg);border-radius:var(--radius-md);border:1px solid var(--border);}
+.modal-info-name{font-weight:800;font-size:1rem;}
+.modal-info-meta{font-size:.75rem;color:var(--muted);margin-top:.15rem;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.65rem;}
+.modal-footer{padding:.9rem 1.2rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;background:#f8fafc;}
+
+/* Mobile nav */
+.settings-mobile-nav{display:none;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:.35rem;padding:.35rem;margin-bottom:1rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);}
+.settings-mobile-nav .settings-nav-item{flex-shrink:0;width:auto;white-space:nowrap;}
+
+@media(max-width:960px){
+  .settings-app{grid-template-columns:1fr;}
+  .settings-nav{display:none;}
+  .settings-mobile-nav{display:flex;}
+}
+@media(max-width:700px){
+  .st-tbl-barbers thead{display:none;}
+  .st-tbl-barbers tr:not(.st-barber-empty){display:block;border-bottom:1px solid var(--border);}
+  .st-tbl-barbers td{display:block;padding:.45rem .9rem;border-top:none;}
+  .st-tbl-barbers td::before{content:attr(data-label);display:block;font-size:.68rem;font-weight:700;color:var(--muted);margin-bottom:.2rem;}
+}
+@media(max-width:540px){
+  .user-cards-grid{grid-template-columns:1fr;}
+  .form-row{grid-template-columns:1fr;}
+  .settings-hero{padding:.85rem;}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-app" id="settings-app">
+
+  <!-- Sidebar (desktop) -->
+  <aside class="settings-nav" aria-label="أقسام الإعدادات">
+    <div class="settings-nav-hd">
+      <h3>لوحة الإعدادات</h3>
+      <p>انتقل بين الأقسام دون تمرير طويل</p>
+    </div>
+    <nav class="settings-nav-list">
+      <button type="button" class="settings-nav-item active" data-panel="brand" aria-current="page">
+        <span class="settings-nav-icon">{% include "frontend/partials/icon.html" with name="brand" size=16 %}</span>
+        <span class="settings-nav-text">
+          <span class="settings-nav-label">هوية المحل</span>
+          <span class="settings-nav-hint">الاسم · الشعار · الثيم</span>
+        </span>
+      </button>
+      <button type="button" class="settings-nav-item" data-panel="staff">
+        <span class="settings-nav-icon">{% include "frontend/partials/icon.html" with name="users" size=16 %}</span>
+        <span class="settings-nav-text">
+          <span class="settings-nav-label">إضافة موظفين</span>
+          <span class="settings-nav-hint">مدير · كاشير · حلاق</span>
+        </span>
+      </button>
+      <button type="button" class="settings-nav-item" data-panel="shift">
+        <span class="settings-nav-icon">{% include "frontend/partials/icon.html" with name="clock" size=16 %}</span>
+        <span class="settings-nav-text">
+          <span class="settings-nav-label">الشفت</span>
+          <span class="settings-nav-hint">{% if current_shift %}نشط الآن{% else %}لا شفت مفتوح{% endif %}</span>
+        </span>
+        <span class="settings-nav-badge">{{ shift_templates|length }}</span>
+      </button>
+      <button type="button" class="settings-nav-item" data-panel="barbers">
+        <span class="settings-nav-icon">{% include "frontend/partials/icon.html" with name="scissors" size=16 %}</span>
+        <span class="settings-nav-text">
+          <span class="settings-nav-label">الحلاقون</span>
+          <span class="settings-nav-hint">العمولة والنشاط</span>
+        </span>
+        <span class="settings-nav-badge">{{ barbers|length }}</span>
+      </button>
+      <button type="button" class="settings-nav-item" data-panel="users">
+        <span class="settings-nav-icon">{% include "frontend/partials/icon.html" with name="lock" size=16 %}</span>
+        <span class="settings-nav-text">
+          <span class="settings-nav-label">المستخدمون</span>
+          <span class="settings-nav-hint">الصلاحيات والحسابات</span>
+        </span>
+        <span class="settings-nav-badge">{{ users|length }}</span>
+      </button>
+    </nav>
+    <div class="settings-nav-ft">
+      {% if current_shift %}
+      <strong>شفت:</strong> {{ current_shift.name|default:"مفتوح" }}<br>
+      {% endif %}
+      {{ barbers_active_count }} حلاق نشط · {{ users_active_count }} مستخدم نشط
+    </div>
+  </aside>
+
+  <div class="settings-main">
+
+    <!-- Mobile tabs -->
+    <nav class="settings-mobile-nav" aria-label="أقسام الإعدادات">
+      <button type="button" class="settings-nav-item active" data-panel="brand">الهوية</button>
+      <button type="button" class="settings-nav-item" data-panel="staff">الموظفون</button>
+      <button type="button" class="settings-nav-item" data-panel="shift">الشفت</button>
+      <button type="button" class="settings-nav-item" data-panel="barbers">الحلاقون</button>
+      <button type="button" class="settings-nav-item" data-panel="users">المستخدمون</button>
+    </nav>
+
+    <header class="settings-hero">
+      <div>
+        <h2 id="settings-panel-title">هوية المحل والمظهر</h2>
+        <p id="settings-panel-desc">اسم المحل، العملة، الشعار، والثيم — يظهر في الترويسة وصفحة الدخول</p>
+      </div>
+      <div class="settings-kpis">
+        <div class="settings-kpi {% if current_shift %}on{% else %}warn{% endif %}">
+          <b>{% if current_shift %}شفت مفتوح{% else %}بدون شفت{% endif %}</b>
+          {% if current_shift %}{{ current_shift.started_at|date:"H:i" }}{% else %}من لوحة التحكم{% endif %}
+        </div>
+        <div class="settings-kpi"><b>{{ barbers_active_count }}</b>حلاق نشط</div>
+        <div class="settings-kpi"><b>{{ users_active_count }}</b>مستخدم نشط</div>
+      </div>
+    </header>
+
+    <!-- ═══ Panel: Brand ═══ -->
+    <section id="panel-brand" class="settings-panel active" data-title="هوية المحل والمظهر" data-desc="اسم المحل، العملة، الشعار، والثيم">
+      <div class="st-card">
+        <div class="st-card-body">
+          <div class="brand-preview">
+            {% if sys.logo %}
+            <img src="/media/{{ sys.logo }}" alt="شعار المحل">
+            {% else %}
+            <span class="brand-placeholder">{% include "frontend/partials/icon.html" with name="brand" size=28 %}</span>
+            {% endif %}
+            <div>
+              <div style="font-weight:800;font-size:.88rem">{{ sys.business_name|default:"Barber Pro" }}</div>
+              <div style="font-size:.74rem;color:var(--muted);margin-top:.15rem">يظهر الشعار في الترويسة وصفحة الدخول</div>
+            </div>
+          </div>
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_branding">
+            <div class="st-grid2">
+              <div class="st-field"><label>اسم المحل</label><input name="business_name" type="text" value="{{ sys.business_name }}" maxlength="120"></div>
+              <div class="st-field"><label>رمز العملة</label><input name="currency" type="text" value="{{ sys.currency }}" placeholder="د.ل"></div>
+              <div class="st-field"><label>هاتف المحل</label><input name="business_phone" type="text" value="{{ sys.business_phone }}" autocomplete="tel"></div>
+              <div class="st-field">
+                <label>ثيم الألوان</label>
+                <select name="theme">
+                  {% for key, meta in themes.items %}
+                  <option value="{{ key }}" {% if sys.theme == key %}selected{% endif %}>{{ meta.label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="st-field" style="grid-column:1/-1"><label>العنوان</label><textarea name="business_address" rows="2">{{ sys.business_address }}</textarea></div>
+              <div class="st-field" style="grid-column:1/-1"><label>رفع شعار جديد</label><input name="logo" type="file" accept="image/*"></div>
+            </div>
+            <div style="margin-top:1rem">
+              <button type="submit" class="btn btn-p">حفظ إعدادات المحل</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Panel: Staff ═══ -->
+    <section id="panel-staff" class="settings-panel" data-title="إضافة موظفين" data-desc="أنشئ حسابات جديدة لكل دور — كلمات المرور 6 أحرف على الأقل">
+      <div class="st-card">
+        <div class="st-card-hd">
+          <div class="st-card-title">{% include "frontend/partials/icon.html" with name="users" size=18 %} حسابات جديدة</div>
+          <div class="st-card-desc">اختر نوع الموظف وأكمل البيانات</div>
+        </div>
+        <div class="st-card-body">
+          <div class="st-grid3">
+            <div class="st-mini">
+              <div class="st-mini-hd admin">{% include "frontend/partials/icon.html" with name="shield" size=15 %} مدير نظام</div>
+              <div class="st-mini-body">
+                <p class="st-desc">صلاحيات كاملة على النظام والإعدادات.</p>
+                {% if open_form == "admin" and admin_form.errors %}<div class="err-box">راجع الحقول أدناه.</div>{% endif %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="create_admin">
+                  <div class="st-field" style="margin-bottom:.5rem"><label>اسم المستخدم</label>{{ admin_form.username }}</div>
+                  <div class="st-field" style="margin-bottom:.5rem"><label>الاسم الأول</label>{{ admin_form.first_name }}</div>
+                  <div class="st-field" style="margin-bottom:.5rem"><label>الاسم الأخير</label>{{ admin_form.last_name }}</div>
+                  <div class="st-field" style="margin-bottom:.5rem"><label>البريد</label>{{ admin_form.email }}</div>
+                  <div class="st-field" style="margin-bottom:.75rem"><label>كلمة المرور</label>{{ admin_form.password }}</div>
+                  <button type="submit" class="btn btn-p btn-sm btn-block">إضافة مدير</button>
+                </form>
+              </div>
+            </div>
+            <div class="st-mini">
+              <div class="st-mini-hd cashier">{% include "frontend/partials/icon.html" with name="monitor" size=15 %} كاشير</div>
+              <div class="st-mini-body">
+                <p class="st-desc">تسجيل المعاملات، الطابور، واستقبال الزبائن.</p>
+                {% if open_form == "cashier" and cashier_form.errors %}<div class="err-box">راجع الحقول أدناه.</div>{% endif %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="create_cashier">
+                  <div class="st-field" style="margin-bottom:.5rem"><label>اسم المستخدم</label>{{ cashier_form.username }}</div>
+                  <div class="st-field" style="margin-bottom:.5rem"><label>الاسم الأول</label>{{ cashier_form.first_name }}</div>
+                  <div class="st-field" style="margin-bottom:.5rem"><label>الاسم الأخير</label>{{ cashier_form.last_name }}</div>
+                  <div class="st-field" style="margin-bottom:.5rem"><label>البريد</label>{{ cashier_form.email }}</div>
+                  <div class="st-field" style="margin-bottom:.75rem"><label>كلمة المرور</label>{{ cashier_form.password }}</div>
+                  <button type="submit" class="btn btn-p btn-sm btn-block">إضافة كاشير</button>
+                </form>
+              </div>
+            </div>
+            <div class="st-mini">
+              <div class="st-mini-hd barber">{% include "frontend/partials/icon.html" with name="scissors" size=15 %} حلاق جديد</div>
+              <div class="st-mini-body">
+                <p class="st-desc">يظهر في الطابور — بدون صلاحية دخول للنظام.</p>
+                {% if open_form == "barber_standalone" and barber_standalone_form.errors %}<div class="err-box">راجع الحقول أدناه.</div>{% endif %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="create_barber_standalone">
+                  <div class="st-field" style="margin-bottom:.5rem"><label>اسم الحلاق</label>{{ barber_standalone_form.name }}</div>
+                  <div class="st-field" style="margin-bottom:.75rem"><label>نسبة العمولة %</label>{{ barber_standalone_form.default_commission_pct }}</div>
+                  <button type="submit" class="btn btn-g btn-sm btn-block">إضافة حلاق</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Panel: Shift ═══ -->
+    <section id="panel-shift" class="settings-panel" data-title="الشفت وأنواع الجدولة" data-desc="الشفت الحالي، إغلاقه، وقوالب الأوقات والكاشيرين">
+      <div class="st-card">
+        <div class="st-card-body">
+          {% if current_shift %}
+          <div class="shift-pill">
+            <div>
+              <strong style="color:var(--primary)">شفت نشط:</strong>
+              {{ current_shift.name|default:"بدون اسم" }} · بدأ {{ current_shift.started_at|date:"d/m/Y H:i" }}
+            </div>
+            {% if can_close_shift %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="close_shift">
+              <button type="submit" class="btn btn-d btn-sm" onclick="return confirm('إغلاق الشفت الحالي؟')">إغلاق الشفت</button>
+            </form>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="shift-pill warn">
+            <strong style="color:var(--warning)">لا يوجد شفت مفتوح.</strong>
+            يمكن فتح شفت من لوحة التحكم أو عبر الجدولة التلقائية.
+          </div>
+          {% endif %}
+
+          <div style="font-size:.78rem;font-weight:800;color:var(--text-2);margin-bottom:.6rem">إضافة نوع شفت جديد</div>
+          <form method="post" class="st-grid2" style="align-items:flex-end;margin-bottom:1.25rem">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_shift_template">
+            <div class="st-field"><label>اسم النوع</label><input name="tpl_name" type="text" placeholder="مثال: صباحي" required maxlength="80"></div>
+            <div class="st-field"><label>وصف (اختياري)</label><input name="tpl_desc" type="text" maxlength="255"></div>
+            <div class="st-field"><label>وقت البداية</label><input name="tpl_start" type="time"></div>
+            <div class="st-field"><label>وقت النهاية</label><input name="tpl_end" type="time"></div>
+            <div style="grid-column:1/-1"><button type="submit" class="btn btn-p btn-sm">حفظ نوع الشفت</button></div>
+          </form>
+
+          {% for tpl in shift_templates %}
+          <div class="tpl-card">
+            <div class="tpl-card-top">
+              <div>
+                <div class="tpl-name">
+                  {{ tpl.name }}
+                  {% if not tpl.is_active %}<span style="color:var(--danger);font-size:.7rem;font-weight:700"> (موقوف)</span>{% endif %}
+                </div>
+                <div class="tpl-meta">{{ tpl.description }}{% if tpl.time_range_display %} · {{ tpl.time_range_display }}{% endif %}</div>
+              </div>
+              <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="toggle_shift_template">
+                  <input type="hidden" name="tpl_id" value="{{ tpl.id }}">
+                  <button type="submit" class="btn btn-o btn-sm">{% if tpl.is_active %}تعطيل{% else %}تفعيل{% endif %}</button>
+                </form>
+                <form method="post" onsubmit="return confirm('حذف هذا النوع؟')">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_shift_template">
+                  <input type="hidden" name="tpl_id" value="{{ tpl.id }}">
+                  <button type="submit" class="btn btn-d btn-sm">حذف</button>
+                </form>
+              </div>
+            </div>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="update_shift_cashiers">
+              <input type="hidden" name="tpl_id" value="{{ tpl.id }}">
+              <div style="font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:.35rem">كاشيرون افتراضيون لهذا النوع</div>
+              <div class="cashier-picks">
+                {% for c in settings_cashiers %}
+                <label>
+                  <input type="checkbox" name="cashier_ids" value="{{ c.id }}" {% if c in tpl.default_cashiers.all %}checked{% endif %}>
+                  {{ c.get_full_name|default:c.username }}
+                </label>
+                {% empty %}
+                <span style="font-size:.74rem;color:var(--muted-light)">لا يوجد كاشيرون نشطون.</span>
+                {% endfor %}
+              </div>
+              {% if settings_cashiers %}
+              <div style="margin-top:.65rem"><button type="submit" class="btn btn-p btn-sm">حفظ الربط</button></div>
+              {% endif %}
+            </form>
+          </div>
+          {% empty %}
+          <p style="font-size:.82rem;color:var(--muted);text-align:center;padding:1.5rem">لم تُعرّف أنواع شفت بعد.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Panel: Barbers ═══ -->
+    <section id="panel-barbers" class="settings-panel" data-title="الحلاقون والعمولة" data-desc="اضبط نسبة العمولة وحالة النشاط لكل حلاق">
+      <div class="st-card">
+        <div class="st-card-hd">
+          <div class="st-card-title">{% include "frontend/partials/icon.html" with name="scissors" size=18 %} فريق الحلاقة</div>
+          <div class="st-card-desc">{{ barbers_active_count }} نشط من أصل {{ barbers|length }} — النسبة الحالية تظهر قبل التعديل</div>
+        </div>
+        <div class="st-card-body" style="padding:0">
+          <div style="overflow-x:auto">
+            <table class="st-tbl st-tbl-barbers">
+              <thead>
+                <tr>
+                  <th>الحلاق</th>
+                  <th>الحساب</th>
+                  <th>النسبة الحالية</th>
+                  <th>تعديل %</th>
+                  <th>نشط</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for b in barbers %}
+                <tr class="{% if not b.is_active %}st-barber-inactive{% endif %}">
+                  <form method="post" style="display:contents">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_barber">
+                    <input type="hidden" name="barber_id" value="{{ b.id }}">
+                    <td data-label="الحلاق">
+                      <input name="name" type="text" value="{{ b.name|default:b.display_name }}" maxlength="120" required
+                        style="padding:.45rem .65rem;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-size:.82rem;width:100%;font-weight:700">
+                    </td>
+                    <td data-label="الحساب">
+                      {% if b.user_id %}<span class="st-barber-acct">{{ b.user.username }}</span>
+                      {% else %}<span class="st-barber-acct" style="color:var(--muted-light)">بدون حساب</span>{% endif %}
+                    </td>
+                    <td data-label="النسبة الحالية">
+                      <span class="st-barber-pct {% if not b.default_commission_pct %}zero{% endif %}">{{ b.default_commission_pct|floatformat:2 }}%</span>
+                    </td>
+                    <td data-label="تعديل">
+                      <input name="default_commission_pct" type="number" step="0.01" min="0" max="100"
+                        value="{{ b.default_commission_pct|floatformat:2 }}" class="st-barber-pct-input"
+                        style="padding:.45rem .65rem;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-size:.82rem">
+                    </td>
+                    <td data-label="نشط">
+                      <label style="display:flex;align-items:center;gap:.35rem;font-size:.8rem;cursor:pointer;font-weight:700">
+                        <input type="checkbox" name="is_active" {% if b.is_active %}checked{% endif %}>
+                        {% if b.is_active %}<span class="tag-yes">نشط</span>{% else %}<span class="tag-no">موقوف</span>{% endif %}
+                      </label>
+                    </td>
+                    <td data-label=""><button type="submit" class="btn btn-g btn-sm">حفظ</button></td>
+                  </form>
+                </tr>
+                {% empty %}
+                <tr class="st-barber-empty"><td colspan="6" style="text-align:center;padding:2.5rem;color:var(--muted-light)">لا يوجد حلاقون — أضف حلاقاً من قسم الموظفين.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Panel: Users ═══ -->
+    <section id="panel-users" class="settings-panel" data-title="المستخدمون والصلاحيات" data-desc="إدارة الحسابات — ابحث بالاسم أو اسم المستخدم">
+      <div class="st-card">
+        <div class="users-toolbar">
+          <div class="users-search">
+            <input type="search" id="user-filter" placeholder="بحث عن مستخدم..." autocomplete="off" aria-label="بحث المستخدمين">
+          </div>
+          <span style="font-size:.74rem;color:var(--muted);font-weight:600">{{ users|length }} حساب</span>
+        </div>
+        <div class="user-cards-grid" id="user-cards-grid">
+          {% for u in users %}
+          <div class="user-card" data-search="{{ u.username|lower }} {{ u.first_name|lower }} {{ u.last_name|lower }} {{ u.email|lower }}"
+            onclick="openProfile('{{ u.id }}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openProfile('{{ u.id }}')">
+            <div class="user-card-top">
+              <div class="u-avatar {% if u.role == 'ADMIN' %}admin{% elif u.role == 'CASHIER' %}cashier{% elif u.role == 'BARBER' %}barber{% else %}other{% endif %}">
+                {{ u.get_full_name|default:u.username|slice:":1"|upper }}
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="u-name">{{ u.get_full_name|default:u.username }}</div>
+                <div class="u-username">@{{ u.username }}</div>
+                <div style="margin-top:.25rem">
+                  {% if u.is_active %}<span class="badge badge-green">نشط</span>{% else %}<span class="badge badge-red">موقوف</span>{% endif %}
+                  {% if u.pk == request.user.pk %}<span class="badge badge-blue" style="margin-right:.3rem">أنت</span>{% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="user-card-meta">
+              {% if u.role == "ADMIN" %}<span class="badge badge-blue">مدير</span>
+              {% elif u.role == "CASHIER" %}<span class="badge badge-yellow">كاشير</span>
+              {% elif u.role == "BARBER" %}<span class="badge badge-green">حلاق</span>
+              {% else %}<span class="badge badge-blue">{{ u.get_role_display }}</span>{% endif %}
+            </div>
+            <div class="user-card-actions">
+              <button type="button" class="btn btn-p btn-sm" onclick="event.stopPropagation();openProfile('{{ u.id }}')">تعديل</button>
+              {% if u.pk != request.user.pk %}
+              <form method="post" onclick="event.stopPropagation()">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_user">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+                <button type="submit" class="btn btn-sm {% if u.is_active %}btn-d{% else %}btn-g{% endif %}">
+                  {% if u.is_active %}تعطيل{% else %}تفعيل{% endif %}
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          {% empty %}
+          <div style="grid-column:1/-1;text-align:center;padding:2.5rem;color:var(--muted-light)">لا يوجد مستخدمون.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- Profile modals -->
+{% for u in users %}
+<div class="modal-overlay" id="modal-{{ u.id }}" role="dialog" aria-modal="true" aria-labelledby="modal-title-{{ u.id }}">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title-{{ u.id }}">
+        <span style="width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.85rem;color:#fff;
+          background:{% if u.role == 'ADMIN' %}var(--grad-primary){% elif u.role == 'CASHIER' %}linear-gradient(135deg,#d97706,#f59e0b){% elif u.role == 'BARBER' %}var(--grad-success){% else %}linear-gradient(135deg,#6366f1,#818cf8){% endif %}">
+          {{ u.get_full_name|default:u.username|slice:":1"|upper }}
+        </span>
+        {{ u.get_full_name|default:u.username }}
+      </div>
+      <button type="button" class="modal-close" onclick="closeProfile('{{ u.id }}')" aria-label="إغلاق">{% include "frontend/partials/icon.html" with name="x" size=14 %}</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-profile-top">
+        <div>
+          <div class="modal-info-name">{{ u.get_full_name|default:u.username }}</div>
+          <div class="modal-info-meta">@{{ u.username }}{% if u.email %} · {{ u.email }}{% endif %}</div>
+          <div style="margin-top:.4rem;display:flex;gap:.35rem;flex-wrap:wrap">
+            {% if u.role == "ADMIN" %}<span class="badge badge-blue">مدير</span>
+            {% elif u.role == "CASHIER" %}<span class="badge badge-yellow">كاشير</span>
+            {% elif u.role == "BARBER" %}<span class="badge badge-green">حلاق</span>
+            {% endif %}
+            {% if u.is_active %}<span class="badge badge-green">نشط</span>{% else %}<span class="badge badge-red">موقوف</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <form method="post" id="edit-user-{{ u.id }}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="edit_user">
+        <input type="hidden" name="user_id" value="{{ u.id }}">
+        <div class="form-row">
+          <div class="st-field"><label>اسم المستخدم</label><input name="username" value="{{ u.username }}" required></div>
+          <div class="st-field"><label>البريد</label><input name="email" type="email" value="{{ u.email }}"></div>
+        </div>
+        <div class="form-row">
+          <div class="st-field"><label>الاسم الأول</label><input name="first_name" value="{{ u.first_name }}"></div>
+          <div class="st-field"><label>الاسم الأخير</label><input name="last_name" value="{{ u.last_name }}"></div>
+        </div>
+        <div class="form-row">
+          <div class="st-field">
+            <label>الدور</label>
+            <select name="role">
+              {% for val, label in user_role_choices %}
+              <option value="{{ val }}" {% if u.role == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="st-field">
+            <label>كلمة مرور جديدة</label>
+            <input name="password" type="password" placeholder="اتركها فارغة للإبقاء" autocomplete="new-password">
+          </div>
+        </div>
+      </form>
+      <div class="modal-footer">
+        {% if u.pk != request.user.pk %}
+        <form method="post" style="display:inline;margin:0">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="toggle_user">
+          <input type="hidden" name="user_id" value="{{ u.id }}">
+          <button type="submit" class="btn btn-sm {% if u.is_active %}btn-d{% else %}btn-g{% endif %}">
+            {% if u.is_active %}تعطيل{% else %}تفعيل{% endif %}
+          </button>
+        </form>
+        {% else %}
+        <span style="font-size:.74rem;color:var(--muted)">حسابك الحالي</span>
+        {% endif %}
+        <div style="display:flex;gap:.5rem">
+          <button type="button" class="btn btn-o btn-sm" onclick="closeProfile('{{ u.id }}')">إلغاء</button>
+          <button type="submit" form="edit-user-{{ u.id }}" class="btn btn-p btn-sm">حفظ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<script>
+(function() {
+  var PANEL_META = {
+    brand:   { title: 'هوية المحل والمظهر', desc: 'اسم المحل، العملة، الشعار، والثيم' },
+    staff:   { title: 'إضافة موظفين', desc: 'حسابات مدير · كاشير · حلاق جديد' },
+    shift:   { title: 'الشفت والجدولة', desc: 'الشفت الحالي وقوالب الأوقات' },
+    barbers: { title: 'الحلاقون والعمولة', desc: 'نسب العمولة وحالة النشاط' },
+    users:   { title: 'المستخدمون', desc: 'الصلاحيات وتعديل الحسابات' }
+  };
+  var HASH_MAP = {
+    'sec-brand': 'brand', 'sec-staff': 'staff', 'sec-shift': 'shift',
+    'sec-barbers': 'barbers', 'sec-users': 'users'
+  };
+
+  function showPanel(id) {
+    var meta = PANEL_META[id] || {};
+    document.querySelectorAll('.settings-panel').forEach(function(p) {
+      p.classList.toggle('active', p.id === 'panel-' + id);
+    });
+    document.querySelectorAll('.settings-nav-item[data-panel="' + id + '"]').forEach(function(btn) {
+      btn.classList.add('active');
+      btn.setAttribute('aria-current', 'page');
+    });
+    document.querySelectorAll('.settings-nav-item[data-panel]').forEach(function(btn) {
+      if (btn.getAttribute('data-panel') !== id) {
+        btn.classList.remove('active');
+        btn.removeAttribute('aria-current');
+      }
+    });
+    var titleEl = document.getElementById('settings-panel-title');
+    var descEl = document.getElementById('settings-panel-desc');
+    var panel = document.getElementById('panel-' + id);
+    if (titleEl) titleEl.textContent = (panel && panel.dataset.title) || meta.title || '';
+    if (descEl) descEl.textContent = (panel && panel.dataset.desc) || meta.desc || '';
+    if (history.replaceState) {
+      history.replaceState(null, '', '#' + (id === 'brand' ? 'sec-brand' : 'sec-' + id));
+    } else {
+      location.hash = id === 'brand' ? 'sec-brand' : 'sec-' + id;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function panelFromHash() {
+    var h = (location.hash || '').replace('#', '');
+    if (HASH_MAP[h]) return HASH_MAP[h];
+    if (h && PANEL_META[h]) return h;
+    return 'brand';
+  }
+
+  document.querySelectorAll('.settings-nav-item[data-panel]').forEach(function(btn) {
+    btn.addEventListener('click', function() { showPanel(btn.getAttribute('data-panel')); });
+  });
+
+  var initial = panelFromHash();
+  if (initial !== 'brand') showPanel(initial);
+  else showPanel('brand');
+
+  /* Auto-open staff panel if form had errors */
+  {% if open_form == "admin" or open_form == "cashier" or open_form == "barber_standalone" %}
+  showPanel('staff');
+  {% endif %}
+
+  /* User search */
+  var filterInput = document.getElementById('user-filter');
+  if (filterInput) {
+    filterInput.addEventListener('input', function() {
+      var q = filterInput.value.trim().toLowerCase();
+      document.querySelectorAll('.user-card[data-search]').forEach(function(card) {
+        var match = !q || (card.getAttribute('data-search') || '').indexOf(q) !== -1;
+        card.classList.toggle('hidden-by-filter', !match);
+      });
+    });
+  }
+})();
+
+function openProfile(id) {
+  var el = document.getElementById('modal-' + id);
+  if (el) { el.classList.add('open'); document.body.style.overflow = 'hidden'; }
+}
+function closeProfile(id) {
+  var el = document.getElementById('modal-' + id);
+  if (el) { el.classList.remove('open'); document.body.style.overflow = ''; }
+}
+document.querySelectorAll('.modal-overlay').forEach(function(el) {
+  el.addEventListener('click', function(e) {
+    if (e.target === el) { el.classList.remove('open'); document.body.style.overflow = ''; }
+  });
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
+      el.classList.remove('open');
+    });
+    document.body.style.overflow = '';
+  }
+});
+</script>
+{% endblock %}

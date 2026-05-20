@@ -1,0 +1,87 @@
+{% extends "frontend/base.html" %}
+{% block title %}إضافة حجز VIP — {{ sys.business_name|default:"Barber Pro" }}{% endblock %}
+{% block header_title %}حجز VIP جديد{% endblock %}
+{% block header_subtitle %}تسجيل حجز جديد للعرسان أو الحفلات{% endblock %}
+
+{% block content %}
+<div class="card-accent" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-accent-inner">
+    <div class="section-title">
+      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      بيانات الحجز المخصص
+    </div>
+    
+    <form method="post" class="vip-form">
+      {% csrf_token %}
+      
+      <div class="grid-2">
+        <div class="field">
+          <label>{{ form.customer_name.label }}</label>
+          {{ form.customer_name }}
+        </div>
+        <div class="field">
+          <label>{{ form.customer_phone.label }}</label>
+          {{ form.customer_phone }}
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="field">
+          <label>{{ form.booking_type.label }}</label>
+          {{ form.booking_type }}
+        </div>
+        <div class="field">
+          <label>{{ form.booking_date.label }}</label>
+          {{ form.booking_date }}
+        </div>
+        <div class="field">
+          <label>{{ form.booking_time.label }}</label>
+          {{ form.booking_time }}
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>{{ form.barbers_count.label }}</label>
+          {{ form.barbers_count }}
+        </div>
+        <div class="field">
+          <label>{{ form.estimated_duration_hours.label }}</label>
+          {{ form.estimated_duration_hours }}
+        </div>
+      </div>
+
+      <div class="grid-2" style="background: var(--bg); padding: 15px; border-radius: 12px; margin-bottom: 18px;">
+        <div class="field">
+          <label>{{ form.base_price.label }}</label>
+          {{ form.base_price }}
+        </div>
+        <div class="field">
+          <label>{{ form.discount_pct.label }}</label>
+          {{ form.discount_pct }}
+        </div>
+      </div>
+
+      <div class="field">
+        <label>{{ form.description.label }}</label>
+        {{ form.description }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.special_requests.label }}</label>
+        {{ form.special_requests }}
+      </div>
+
+      <div style="margin-top: 24px; display: flex; gap: 12px;">
+        <button type="submit" class="btn btn-p" style="flex: 1; padding: 12px;">حفظ الحجز واستخراج واصل</button>
+        <a href="{% url 'frontend:vip:vip_bookings_list' %}" class="btn btn-o">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .vip-form .field { margin-bottom: 16px; }
+  .vip-form textarea { min-height: 80px; resize: vertical; }
+</style>
+{% endblock %}

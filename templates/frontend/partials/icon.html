@@ -1,0 +1,5 @@
+{% with sz=size|default:18 %}
+<svg class="ui-icon{% if extra_class %} {{ extra_class }}{% endif %}" width="{{ sz }}" height="{{ sz }}" aria-hidden="true" focusable="false">
+  <use href="#icon-{{ name }}"/>
+</svg>
+{% endwith %}

@@ -1,0 +1,148 @@
+{% extends "frontend/base.html" %}
+{% block title %}شاشة الحلاق — {{ sys.business_name|default:"Barber Pro" }}{% endblock %}
+{% block header_title %}شاشة الحلاق{% endblock %}
+{% block header_subtitle %}طابورك، عمولتك، وملخص الأسبوع{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="ph-text">
+      <h2 style="margin:0;font-size:1.05rem;font-weight:800">{{ barber.display_name }}</h2>
+    <p style="margin:6px 0 0">عمولة افتراضية <strong style="color:var(--green)">{{ barber.default_commission_pct|floatformat:0 }}%</strong> · متوسط تذكرة اليوم: {{ avg_ticket|floatformat:0 }} {{ sys.currency|default:"د" }}</p>
+  </div>
+  <div class="ph-time">
+    <b>{{ now_local|time:"H:i" }}</b>
+    {{ weekday_ar }} {{ now_local|date:"d/m/Y" }}
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kv">{{ barber.default_commission_pct|floatformat:0 }}%</div>
+    <div class="kl">نسبة العمولة</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kv">{{ earnings_today|floatformat:0 }} <small style="font-size:.55em;opacity:.65">{{ sys.currency|default:"د" }}</small></div>
+    <div class="kl">عمولتك اليوم</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kv">{{ revenue_today|floatformat:0 }} <small style="font-size:.55em;opacity:.65">{{ sys.currency|default:"د" }}</small></div>
+    <div class="kl">إيرادك اليوم (مكتمل)</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kv">{{ my_completed|length }}</div>
+    <div class="kl">تذاكر مكتملة اليوم</div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <div class="section-title">
+    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    ملخص آخر 7 أيام
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px">
+    {% for w in week_summary %}
+    <div style="flex:1;min-width:100px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--bg);font-size:.78rem;text-align:center">
+      <div style="font-weight:800;color:var(--primary)">{{ w.date|date:"d/m" }}</div>
+      <div style="color:var(--muted);margin-top:4px">{{ w.count }} تذكرة</div>
+      <div style="font-weight:700;margin-top:4px">{{ w.commission|floatformat:0 }} {{ sys.currency|default:"د" }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card-accent">
+    <div class="card-accent-inner">
+      <div class="section-title">طابور الانتظار</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>الزبون</th><th>الوصف</th><th>الوقت</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            {% for t in my_waiting %}
+            <tr>
+              <td style="font-weight:700">{{ t.customer.name }}</td>
+              <td style="color:var(--muted);font-size:.8rem">{{ t.description|default:"—" }}</td>
+              <td style="white-space:nowrap;font-size:.8rem">{{ t.created_at|date:"H:i" }}</td>
+              <td>
+                <form method="post" style="display:flex;flex-direction:column;gap:8px;align-items:stretch">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="set_price">
+                  <input type="hidden" name="ticket_id" value="{{ t.id }}">
+                  <input name="amount" type="number" step="0.01" min="0" value="{% if t.total %}{{ t.total }}{% endif %}" placeholder="السعر" class="field-input" style="max-width:120px">
+                  <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    <button class="btn btn-o btn-sm" type="submit">حفظ السعر</button>
+                  </div>
+                </form>
+                <form method="post" style="margin-top:12px">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="start_ticket">
+                  <input type="hidden" name="ticket_id" value="{{ t.id }}">
+                  <button class="btn btn-p btn-sm" type="submit">بدء الخدمة</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4"><div class="empty" style="padding:16px">لا يوجد في الانتظار.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="card-accent">
+    <div class="card-accent-inner">
+      <div class="section-title">قيد التنفيذ — إنهاء ودفع</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>الزبون</th><th>بدأ</th><th>الإنهاء</th></tr></thead>
+          <tbody>
+            {% for t in my_progress %}
+            <tr>
+              <td style="font-weight:700">{{ t.customer.name }}</td>
+              <td style="font-size:.8rem">{{ t.started_at|date:"H:i" }}</td>
+              <td>
+                <form method="post" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="complete_ticket">
+                  <input type="hidden" name="ticket_id" value="{{ t.id }}">
+                  <input name="amount" type="number" step="0.01" min="0" value="{% if t.total > 0 %}{{ t.total }}{% endif %}" placeholder="المبلغ النهائي" class="field-input" style="width:100px">
+                  <button class="btn btn-p btn-sm" type="submit">إنهاء + دفع</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3"><div class="empty" style="padding:16px">لا يوجد قيد التنفيذ.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card-accent">
+  <div class="card-accent-inner">
+    <div class="section-title">مكتملة اليوم</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>الزبون</th><th>الإجمالي</th><th>عمولتك</th></tr></thead>
+        <tbody>
+          {% for t in my_completed %}
+          <tr>
+            <td style="font-weight:700">{{ t.customer.name }}</td>
+            <td><span class="price-tag">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}</span></td>
+            <td style="font-weight:800;color:var(--green)">{{ t.barber_commission_total|floatformat:0 }} {{ sys.currency|default:"د" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3"><div class="empty" style="padding:16px">لا توجد تذاكر مكتملة اليوم بعد.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<p style="text-align:center;margin-top:16px">
+  <a href="{% url 'frontend:barber_history' %}" class="btn btn-o">سجل عملياتي الكامل</a>
+</p>
+{% endblock %}

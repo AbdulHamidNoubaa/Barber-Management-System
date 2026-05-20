@@ -1,0 +1,360 @@
+{% extends "frontend/base.html" %}
+{% block title %}لوحة التحكم — {{ sys.business_name|default:"Barber Pro" }}{% endblock %}
+{% block header_title %}لوحة التحكم{% endblock %}
+{% block header_subtitle %}{{ weekday_ar }} {{ now_local|date:"d/m/Y" }} · {{ now_local|time:"H:i" }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Dashboard-specific overrides ── */
+
+  /* Shift Status Banner */
+  .shift-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: .85rem 1.25rem;
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.25rem;
+    font-size: .83rem;
+  }
+
+  .shift-banner.active {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 1px solid #bfdbfe;
+  }
+
+  .shift-banner.idle {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 1px solid #fcd34d;
+  }
+
+  .shift-status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: .35rem;
+  }
+
+  .shift-status-dot.on  { background: var(--success); box-shadow: 0 0 0 3px rgba(5,150,105,.2); animation: pulse 2s infinite; }
+  .shift-status-dot.off { background: var(--warning); }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(5,150,105,.2); }
+    50%       { box-shadow: 0 0 0 6px rgba(5,150,105,.05); }
+  }
+
+  .shift-info { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+
+  .shift-name {
+    font-weight: 800;
+    font-size: .88rem;
+    color: var(--primary);
+  }
+
+  .shift-meta { color: var(--muted); }
+
+  .shift-stats {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  .shift-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .1rem;
+  }
+
+  .shift-stat-val {
+    font-weight: 800;
+    font-size: .92rem;
+    color: var(--text);
+  }
+
+  .shift-stat-lbl {
+    font-size: .66rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .shift-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+  /* Open-shift form */
+  .open-shift-form {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+
+  .open-shift-form input[type="text"] {
+    width: 180px;
+    padding: .4rem .7rem;
+    font-size: .8rem;
+  }
+
+  /* ── Dashboard grid: KPI top, kanban below ── */
+  .dash-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  /* Kanban board fixed height to avoid full-page scroll */
+  .queue-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .qb-col {
+    height: 340px;  /* fixed so content scrolls inside column */
+  }
+
+  /* Platform stats bar */
+  .stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding: .65rem 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: .78rem;
+    color: var(--muted);
+  }
+
+  .stats-bar strong { color: var(--text); font-weight: 800; }
+
+  .stats-bar-item { display: flex; align-items: center; gap: .35rem; }
+
+  .stats-bar-divider { width: 1px; height: 16px; background: var(--border); }
+
+  /* Quick action buttons */
+  .quick-actions {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+
+  @media (max-width: 900px) {
+    .queue-board { grid-template-columns: 1fr; }
+    .qb-col { height: auto; max-height: 280px; }
+  }
+
+  @media (max-width: 640px) {
+    .shift-banner { flex-direction: column; align-items: flex-start; }
+    .shift-stats  { gap: .75rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-layout">
+
+  <!-- ① Quick Actions -->
+  <div class="quick-actions">
+    <a href="{% url 'frontend:queue' %}" class="btn btn-p">الانتقال إلى الطابور</a>
+    <a href="{% url 'frontend:reports' %}" class="btn btn-o">التقارير</a>
+    {% if request.user.is_superuser or request.user.role == "ADMIN" %}
+    <a href="{% url 'frontend:settings' %}" class="btn btn-o">الإعدادات</a>
+    {% endif %}
+  </div>
+
+  <!-- ② Shift Status Banner -->
+  {% if current_shift %}
+  <div class="shift-banner active">
+    <div class="shift-info">
+      <span class="shift-status-dot on"></span>
+      <span class="shift-name">{{ current_shift.name|default:"شفت نشط" }}</span>
+      <span class="shift-meta">· بدأ في {{ current_shift.started_at|date:"d/m/Y H:i" }}</span>
+    </div>
+
+    <div class="shift-stats">
+      <div class="shift-stat">
+        <span class="shift-stat-val">{{ revenue|floatformat:0 }}</span>
+        <span class="shift-stat-lbl">إيراد ({{ sys.currency|default:"د" }})</span>
+      </div>
+      <div class="shift-stats-divider" style="width:1px;background:rgba(0,0,0,.08);align-self:stretch;"></div>
+      <div class="shift-stat">
+        <span class="shift-stat-val" style="color:var(--success)">{{ net_profit|floatformat:0 }}</span>
+        <span class="shift-stat-lbl">صافي ({{ sys.currency|default:"د" }})</span>
+      </div>
+      <div class="shift-stats-divider" style="width:1px;background:rgba(0,0,0,.08);align-self:stretch;"></div>
+      <div class="shift-stat">
+        <span class="shift-stat-val">{{ customers_count }}</span>
+        <span class="shift-stat-lbl">زبائن</span>
+      </div>
+      {% if commission %}
+      <div class="shift-stats-divider" style="width:1px;background:rgba(0,0,0,.08);align-self:stretch;"></div>
+      <div class="shift-stat">
+        <span class="shift-stat-val">{{ commission|floatformat:0 }}</span>
+        <span class="shift-stat-lbl">عمولات ({{ sys.currency|default:"د" }})</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="shift-actions">
+      {% if can_close %}
+      <form method="post" onsubmit="return confirm('إغلاق الشفت الحالي؟')">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="close_shift">
+        <button type="submit" class="btn btn-d btn-sm">إغلاق الشفت</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% else %}
+  <div class="shift-banner idle">
+    <div class="shift-info">
+      <span class="shift-status-dot off"></span>
+      <span class="shift-name" style="color:var(--warning)">لا يوجد شفت مفتوح</span>
+      <span class="shift-meta">· سيتم فتح شفت جديد يدوياً أو تلقائياً عند بدء التشغيل</span>
+    </div>
+    {% if request.user.is_superuser or request.user.role == "ADMIN" %}
+    <div class="shift-actions">
+      <form method="post" class="open-shift-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="open_shift">
+        <input type="text" name="shift_name" placeholder="اسم الشفت (اختياري)" maxlength="120">
+        <button type="submit" class="btn btn-p btn-sm">فتح شفت</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ③ KPI Cards -->
+  <div class="kpi-grid">
+
+    <div class="kpi-card">
+      <div class="kpi-icon blue">{% include "frontend/partials/icon.html" with name="currency" size=20 %}</div>
+      <div class="kpi-label">إيراد الشفت</div>
+      <div class="kpi-value">{{ revenue|floatformat:0 }} <small>{{ sys.currency|default:"د" }}</small></div>
+      <div class="kpi-sub">المبالغ المكتملة فقط</div>
+    </div>
+
+    <div class="kpi-card kpi-green">
+      <div class="kpi-icon green">{% include "frontend/partials/icon.html" with name="chart" size=20 %}</div>
+      <div class="kpi-label">صافي المحل</div>
+      <div class="kpi-value" style="color:var(--success)">{{ net_profit|floatformat:0 }} <small>{{ sys.currency|default:"د" }}</small></div>
+      <div class="kpi-sub">بعد خصم العمولات</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon blue">{% include "frontend/partials/icon.html" with name="users" size=20 %}</div>
+      <div class="kpi-label">زبائن الشفت</div>
+      <div class="kpi-value">{{ customers_count }}</div>
+      <div class="kpi-sub">إجمالي المعاملات المكتملة</div>
+    </div>
+
+    <div class="kpi-card kpi-warn">
+      <div class="kpi-icon yellow">{% include "frontend/partials/icon.html" with name="currency" size=20 %}</div>
+      <div class="kpi-label">توزيع الدفع</div>
+      <div class="kpi-value" style="font-size:1.1rem;line-height:1.5">
+        <span style="color:var(--success)">{{ cash_total|floatformat:0 }}</span> <small>نقدي</small>
+        &nbsp;/&nbsp;
+        <span style="color:var(--info)">{{ card_total|floatformat:0 }}</span> <small>بطاقة</small>
+      </div>
+      <div class="kpi-sub">{{ sys.currency|default:"د" }}</div>
+    </div>
+
+  </div>
+
+  <!-- ④ Queue Kanban Board -->
+  <div class="queue-board">
+
+    <!-- Waiting -->
+    <div class="qb-col">
+      <div class="qb-head wait">
+        <span>في الانتظار</span>
+        <span class="qb-count">{{ waiting|length }}</span>
+      </div>
+      <div class="qb-body">
+        {% for t in waiting %}
+        <div class="dt-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">
+            <span class="nm">{{ t.customer.name }}</span>
+            <span class="badge-d w">انتظار</span>
+          </div>
+          <div class="meta">
+            {{ t.barber.display_name }}
+            {% if t.total and t.total > 0 %}· <span class="price-tag">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}</span>{% else %}· لم يُحدد السعر{% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div class="dt-empty">لا توجد تذاكر انتظار</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- In Progress -->
+    <div class="qb-col">
+      <div class="qb-head run">
+        <span>قيد التنفيذ</span>
+        <span class="qb-count">{{ in_progress|length }}</span>
+      </div>
+      <div class="qb-body">
+        {% for t in in_progress %}
+        <div class="dt-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">
+            <span class="nm">{{ t.customer.name }}</span>
+            <span class="badge-d r">تنفيذ</span>
+          </div>
+          <div class="meta">
+            {{ t.barber.display_name }}
+            {% if t.total and t.total > 0 %}· <span class="price-tag">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}</span>{% else %}· لم يُحدد السعر{% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div class="dt-empty">لا يوجد عمل جارٍ</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Completed -->
+    <div class="qb-col">
+      <div class="qb-head done">
+        <span>آخر المكتملة</span>
+        <span class="qb-count">{{ completed|length }}</span>
+      </div>
+      <div class="qb-body">
+        {% for t in completed %}
+        <div class="dt-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">
+            <span class="nm">{{ t.customer.name }}</span>
+            <span class="badge-d g">مكتمل</span>
+          </div>
+          <div class="meta">
+            {{ t.barber.display_name }}
+            · <span class="price-tag">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}</span>
+            {% if t.completed_at %}· {{ t.completed_at|date:"H:i" }}{% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div class="dt-empty">لا توجد معاملات مكتملة بعد</div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ⑤ Platform Stats Bar -->
+  <div class="stats-bar">
+    <div class="stats-bar-item">إجمالي المنصة</div>
+    <div class="stats-bar-divider"></div>
+    <div class="stats-bar-item">إيراد كلي: <strong>{{ all_revenue|floatformat:0 }} {{ sys.currency|default:"د" }}</strong></div>
+    <div class="stats-bar-divider"></div>
+    <div class="stats-bar-item">زبائن: <strong>{{ all_customers }}</strong></div>
+    <div class="stats-bar-divider"></div>
+    <div class="stats-bar-item">حلاقون نشطون: <strong>{{ barbers_active }}</strong></div>
+  </div>
+
+</div>
+{% endblock %}

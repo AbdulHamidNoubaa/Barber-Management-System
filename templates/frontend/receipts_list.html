@@ -1,0 +1,68 @@
+{% extends "frontend/base.html" %}
+{% block title %}سجل الوصولات — {{ sys.business_name|default:"Barber Pro" }}{% endblock %}
+{% block header_title %}سجل الوصولات{% endblock %}
+{% block header_subtitle %}جميع الوصولات الصادرة من المنظومة{% endblock %}
+
+{% block content %}
+<div class="filter-bar card" style="margin-bottom: 20px;">
+  <form method="get" style="display:contents;">
+    <div class="field" style="flex: 2;">
+      <label>نوع الوصل</label>
+      <select name="type" class="field-input">
+        <option value="">كل الأنواع</option>
+        {% for val, label in receipt_types %}
+        <option value="{{ val }}" {% if request.GET.type == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-p">تصفية</button>
+    <a href="{% url 'frontend:vip:receipts_list' %}" class="btn btn-o">مسح</a>
+  </form>
+</div>
+
+<div class="card-accent">
+  <div class="card-accent-inner">
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>رقم الوصل</th>
+            <th>التاريخ</th>
+            <th>العميل</th>
+            <th>النوع</th>
+            <th>المبلغ</th>
+            <th>الطريقة</th>
+            <th>بواسطة</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in receipts_page %}
+          <tr>
+            <td><code style="font-weight: 800;">{{ r.receipt_number }}</code></td>
+            <td class="muted">{{ r.created_at|date:"d/m/Y H:i" }}</td>
+            <td><b>{{ r.customer_name }}</b></td>
+            <td><span class="badge b-wait">{{ r.get_receipt_type_display }}</span></td>
+            <td><span class="price-tag">{{ r.amount }} {{ sys.currency }}</span></td>
+            <td>
+              {% if r.payment_method == 'CASH' %}
+              <span class="pay-badge cash">نقدي</span>
+              {% else %}
+              <span class="pay-badge card">بطاقة</span>
+              {% endif %}
+            </td>
+            <td class="muted">{{ r.issued_by.get_full_name|default:r.issued_by.username }}</td>
+            <td>
+              <a href="{% url 'frontend:vip:receipt_print' r.id %}" target="_blank" class="btn btn-o btn-sm">طباعة</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="empty">لا توجد وصولات مطابقة للبحث.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "frontend/partials/pagination.html" with page_obj=receipts_page query_string=query_string %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "frontend/base.html" %}
+{% block title %}حجوزات VIP — {{ sys.business_name|default:"Barber Pro" }}{% endblock %}
+{% block header_title %}حجوزات VIP{% endblock %}
+{% block header_subtitle %}إدارة حجوزات العرسان والحفلات الخاصة{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="ph-text">
+    <h2 style="margin:0;font-size:1.05rem;font-weight:800">إدارة حجوزات الـ VIP</h2>
+    <p style="margin:6px 0 0">هنا يمكنك متابعة حجوزات العرسان والحفلات المسبقة وتأكيدها.</p>
+  </div>
+  <div class="ph-time">
+    <a href="{% url 'frontend:vip:create_vip_booking' %}" class="btn btn-p">
+      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-inline-end:8px"><path d="M12 6v6m0 0v6m0-6h6m-6 0H6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      حجز VIP جديد
+    </a>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- الحجوزات قيد الانتظار والمؤكدة -->
+  <div class="card-accent">
+    <div class="card-accent-inner">
+      <div class="section-title">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        حجوزات قادمة
+        <span class="badge b-wait" style="margin-inline-start:auto">{{ pending|length|add:confirmed|length }}</span>
+      </div>
+      
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>العميل</th>
+              <th>التاريخ والوقت</th>
+              <th>النوع</th>
+              <th>الحالة</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in in_progress %}
+            <tr style="background: var(--primary-soft)">
+              <td><b>{{ b.customer.name }}</b></td>
+              <td>{{ b.booking_date|date:"d/m" }} - {{ b.booking_time|time:"H:i" }}</td>
+              <td><span class="badge b-run">قيد التنفيذ</span></td>
+              <td><span class="price-tag">{{ b.final_price }} {{ sys.currency }}</span></td>
+              <td><a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">فتح</a></td>
+            </tr>
+            {% endfor %}
+            
+            {% for b in confirmed %}
+            <tr>
+              <td><b>{{ b.customer.name }}</b></td>
+              <td>{{ b.booking_date|date:"d/m" }} - {{ b.booking_time|time:"H:i" }}</td>
+              <td><span class="badge b-done">{{ b.get_booking_type_display }}</span></td>
+              <td><span class="price-tag">{{ b.final_price }} {{ sys.currency }}</span></td>
+              <td><a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">فتح</a></td>
+            </tr>
+            {% endfor %}
+
+            {% for b in pending %}
+            <tr>
+              <td><b>{{ b.customer.name }}</b></td>
+              <td>{{ b.booking_date|date:"d/m" }} - {{ b.booking_time|time:"H:i" }}</td>
+              <td><span class="badge b-wait">انتظار التأكيد</span></td>
+              <td><span class="price-tag">{{ b.final_price }} {{ sys.currency }}</span></td>
+              <td><a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">فتح</a></td>
+            </tr>
+            {% endfor %}
+            
+            {% if not pending and not confirmed and not in_progress %}
+            <tr><td colspan="5" class="empty">لا توجد حجوزات قادمة حالياً.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- الحجوزات المكتملة -->
+  <div class="card-accent">
+    <div class="card-accent-inner">
+      <div class="section-title">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        آخر الحجوزات المكتملة
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>العميل</th>
+              <th>التاريخ</th>
+              <th>المبلغ</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in completed_page %}
+            <tr>
+              <td>{{ b.customer.name }}</td>
+              <td class="muted">{{ b.booking_date|date:"d/m/Y" }}</td>
+              <td><b>{{ b.final_price }}</b></td>
+              <td><a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">عرض</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="empty">لا توجد سجلات سابقة.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% include "frontend/partials/pagination.html" with page_obj=completed_page query_string=completed_query_string page_param='cpage' %}
+    </div>
+  </div>
+</div>
+{% endblock %}
