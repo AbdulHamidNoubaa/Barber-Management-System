@@ -21,6 +21,7 @@ from barber_ms.pagination import (
     paginate_queryset,
     querystring_excluding_page,
 )
+from barber_ms.ticket_actions import apply_ticket_edit, can_modify_ticket, delete_ticket_record
 from barber_ms.forms import (
     AdminCreateForm,
     BarberCommissionForm,
@@ -29,6 +30,7 @@ from barber_ms.forms import (
     CashierCreateForm,
     ExpenseCategoryForm,
     QueueTicketForm,
+    TicketEditForm,
     TreasuryEntryForm,
     UserEditForm,
 )
@@ -430,6 +432,47 @@ def dashboard(request):
 # ─── Queue (Admin + Cashier) ──────────────────────────────
 
 
+def _handle_ticket_edit_delete(request, redirect_to):
+    """معالجة تعديل/حذف تذكرة طابور (POST)."""
+    action = request.POST.get("action")
+    if action not in ("edit_ticket", "delete_ticket"):
+        return None
+    ticket_id = request.POST.get("ticket_id")
+    if not ticket_id:
+        messages.error(request, "معرّف المعاملة غير صالح.")
+        return redirect_to
+
+    try:
+        ticket = Ticket.objects.select_related("customer", "barber", "shift").get(pk=ticket_id)
+    except Ticket.DoesNotExist:
+        messages.error(request, "لم يتم العثور على المعاملة.")
+        return redirect_to
+
+    allowed, err = can_modify_ticket(ticket, request.user)
+    if not allowed:
+        messages.error(request, err)
+        return redirect_to
+
+    if action == "edit_ticket":
+        form = TicketEditForm(ticket, request.POST)
+        if form.is_valid():
+            apply_ticket_edit(ticket, form.cleaned_data)
+            messages.success(request, f"تم تحديث معاملة #{ticket_id}.")
+        else:
+            for field_errors in form.errors.values():
+                for err_msg in field_errors:
+                    messages.error(request, err_msg)
+        return redirect_to
+
+    if action == "delete_ticket":
+        try:
+            delete_ticket_record(ticket)
+            messages.success(request, f"تم حذف المعاملة #{ticket_id}.")
+        except Exception as exc:
+            messages.error(request, f"تعذر الحذف: {exc}")
+    return redirect_to
+
+
 def _redirect_queue(request, anchor: str = ""):
     """إعادة التوجيه للطابور مع الحفاظ على معاملات التصفية."""
     url = reverse("frontend:queue")
@@ -635,6 +678,9 @@ def queue_view(request):
                 messages.error(request, "خطأ في البيانات المدخلة.")
             return _redirect_queue(request)
 
+        elif action in ("edit_ticket", "delete_ticket"):
+            return _handle_ticket_edit_delete(request, _redirect_queue(request))
+
     form = QueueTicketForm()
     flt = _queue_filters(request)
     open_shift = (
@@ -688,6 +734,8 @@ def queue_view(request):
             },
             "return_qs": request.GET.urlencode(),
             "quick_services": Service.objects.filter(is_active=True).order_by("name")[:16],
+            "ticket_edit_form": TicketEditForm(),
+            "is_admin": _is_admin(request.user),
         },
     )
 
@@ -697,6 +745,24 @@ def queue_barber_transactions(request):
     if not _is_cashier_or_admin(request.user):
         messages.error(request, "ليس لديك صلاحية الوصول.")
         return redirect("frontend:barber")
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action in ("edit_ticket", "delete_ticket"):
+            raw_id = request.POST.get("barber_redirect") or request.GET.get("barber")
+            qs = request.GET.urlencode()
+            def _back(req):
+                from django.urls import reverse
+
+                base = reverse("frontend:queue_barber_transactions")
+                if raw_id:
+                    q = f"barber={raw_id}"
+                    if qs:
+                        q = f"{q}&{qs}"
+                    return redirect(f"{base}?{q}")
+                return redirect("frontend:queue")
+
+            return _handle_ticket_edit_delete(request, _back(request))
 
     raw_id = request.GET.get("barber")
     if not raw_id or not str(raw_id).isdigit():
@@ -726,6 +792,9 @@ def queue_barber_transactions(request):
             "query_string": querystring_excluding_page(request),
             "filter_status": status,
             "ticket_status_choices": TicketStatus.choices,
+            "ticket_edit_form": TicketEditForm(),
+            "is_admin": _is_admin(request.user),
+            "active_barbers": BarberProfile.objects.filter(is_active=True).order_by("name"),
         },
     )
 
@@ -745,6 +814,22 @@ def barber_log_view(request):
     if not _is_admin(request.user):
         messages.error(request, "سجل الحلاقين متاح للمدير فقط.")
         return redirect("frontend:dashboard")
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action in ("edit_ticket", "delete_ticket"):
+            from django.urls import reverse
+            from urllib.parse import urlencode
+
+            q = {}
+            for key in ("barber", "from", "to", "page"):
+                v = request.POST.get(f"_ret_{key}") or request.GET.get(key)
+                if v:
+                    q[key] = v
+            base = reverse("frontend:barber_log")
+            dest = f"{base}?{urlencode(q)}" if q else base
+
+            return _handle_ticket_edit_delete(request, redirect(dest))
 
     barbers = BarberProfile.objects.select_related("user").filter(is_active=True).order_by(
         "user__first_name", "user__username"
@@ -804,6 +889,9 @@ def barber_log_view(request):
             "query_string": querystring_excluding_page(request),
             "barber_stats": barber_stats,
             "selected_barber_id": selected_barber_id,
+            "ticket_edit_form": TicketEditForm(),
+            "is_admin": True,
+            "active_barbers": barbers,
         },
     )
 

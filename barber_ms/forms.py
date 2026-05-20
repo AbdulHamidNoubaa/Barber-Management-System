@@ -6,7 +6,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from accounts.models import BarberProfile, User, UserRole
-from core.models import ExpenseCategory, PaymentMethod, SystemSetting, TreasuryEntryType
+from core.models import ExpenseCategory, PaymentMethod, SystemSetting, TicketStatus, TreasuryEntryType
 
 
 class QueueTicketForm(forms.Form):
@@ -57,6 +57,47 @@ class QueueTicketForm(forms.Form):
         })
         self.fields["barber_id"].widget.attrs.update({"id": "posBarberSelect"})
         self.fields["payment_method"].widget.attrs.update({"id": "posPaymentSelect"})
+
+
+class TicketEditForm(forms.Form):
+    """تعديل تذكرة طابور (حلاقة عادية)."""
+
+    customer_name = forms.CharField(max_length=120, label="اسم الزبون")
+    customer_phone = forms.CharField(max_length=30, required=False, label="الجوال")
+    barber_id = forms.ModelChoiceField(
+        queryset=BarberProfile.objects.none(),
+        label="الحلاق",
+    )
+    description = forms.CharField(max_length=255, required=False, label="الخدمة / ملاحظة")
+    amount = forms.DecimalField(
+        required=False,
+        min_value=Decimal("0"),
+        max_digits=12,
+        decimal_places=2,
+        label="المبلغ",
+    )
+    payment_method = forms.ChoiceField(
+        choices=[(PaymentMethod.CASH, "نقدي"), (PaymentMethod.CARD, "بطاقة")],
+        label="طريقة الدفع",
+    )
+    status = forms.ChoiceField(choices=TicketStatus.choices, label="الحالة")
+
+    def __init__(self, ticket=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ticket = ticket
+        self.fields["barber_id"].queryset = BarberProfile.objects.filter(is_active=True).select_related(
+            "user"
+        )
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "field-input")
+        if ticket and not self.is_bound:
+            self.fields["customer_name"].initial = ticket.customer.name
+            self.fields["customer_phone"].initial = ticket.customer.phone or ""
+            self.fields["barber_id"].initial = ticket.barber_id
+            self.fields["description"].initial = ticket.description
+            self.fields["amount"].initial = ticket.total if ticket.total > 0 else None
+            self.fields["payment_method"].initial = ticket.payment_method or PaymentMethod.CASH
+            self.fields["status"].initial = ticket.status
 
 
 class _BaseUserCreateForm(forms.ModelForm):

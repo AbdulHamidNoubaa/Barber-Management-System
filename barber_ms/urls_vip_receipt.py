@@ -13,6 +13,7 @@ urlpatterns = [
     path('vip-bookings/', views_vip_receipt.vip_bookings_list, name='vip_bookings_list'),
     path('vip-bookings/create/', views_vip_receipt.create_vip_booking, name='create_vip_booking'),
     path('vip-bookings/<int:booking_id>/', views_vip_receipt.vip_booking_detail, name='vip_booking_detail'),
+    path('vip-bookings/<int:booking_id>/edit/', views_vip_receipt.edit_vip_booking, name='edit_vip_booking'),
     
     # Receipt URLs
     path('receipts/', views_vip_receipt.receipts_list, name='receipts_list'),

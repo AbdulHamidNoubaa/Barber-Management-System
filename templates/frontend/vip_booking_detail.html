@@ -89,6 +89,14 @@
             {% for r in receipts %}
             <a href="{% url 'frontend:vip:receipt_print' r.id %}" target="_blank" class="btn btn-o" style="grid-column: span 2;">طباعة الوصل الحالي</a>
             {% endfor %}
+
+            {% if can_edit_vip %}
+            <a href="{% url 'frontend:vip:edit_vip_booking' booking.id %}" class="btn btn-o" style="grid-column: span 2;">تعديل الحجز</a>
+            {% endif %}
+
+            {% if is_admin %}
+            <button type="submit" name="action" value="delete" class="btn btn-d" style="grid-column: span 2;" onclick="return confirm('حذف حجز VIP نهائياً؟ لا يمكن التراجع.')">حذف الحجز (مدير فقط)</button>
+            {% endif %}
             
             {% if booking.status != 'cancelled' and booking.status != 'completed' %}
             <button type="submit" name="action" value="cancel" class="btn btn-outline" style="grid-column: span 2; border-color: var(--danger); color: var(--danger);" onclick="return confirm('هل أنت متأكد من إلغاء الحجز؟')">إلغاء الحجز</button>

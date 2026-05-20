@@ -1,0 +1,45 @@
+{% extends "frontend/base.html" %}
+{% block title %}تعديل حجز VIP #{{ booking.id }}{% endblock %}
+{% block header_title %}تعديل حجز VIP{% endblock %}
+{% block header_subtitle %}{{ booking.customer.name }}{% endblock %}
+
+{% block content %}
+<div class="card-accent" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-accent-inner">
+    <div class="section-title">تعديل بيانات الحجز</div>
+    <form method="post" class="vip-form">
+      {% csrf_token %}
+      <div class="grid-2">
+        <div class="field"><label>{{ form.customer_name.label }}</label>{{ form.customer_name }}</div>
+        <div class="field"><label>{{ form.customer_phone.label }}</label>{{ form.customer_phone }}</div>
+      </div>
+      <div class="grid-3">
+        <div class="field"><label>{{ form.booking_type.label }}</label>{{ form.booking_type }}</div>
+        <div class="field"><label>{{ form.booking_date.label }}</label>{{ form.booking_date }}</div>
+        <div class="field"><label>{{ form.booking_time.label }}</label>{{ form.booking_time }}</div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label>{{ form.barbers_count.label }}</label>{{ form.barbers_count }}</div>
+        <div class="field"><label>{{ form.estimated_duration_hours.label }}</label>{{ form.estimated_duration_hours }}</div>
+      </div>
+      <div class="grid-2" style="background:var(--bg);padding:15px;border-radius:12px;margin-bottom:18px">
+        <div class="field"><label>{{ form.base_price.label }}</label>{{ form.base_price }}</div>
+        <div class="field"><label>{{ form.discount_pct.label }}</label>{{ form.discount_pct }}</div>
+      </div>
+      <div class="field"><label>{{ form.description.label }}</label>{{ form.description }}</div>
+      <div class="field"><label>{{ form.special_requests.label }}</label>{{ form.special_requests }}</div>
+      <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
+        <button type="submit" class="btn btn-p" style="flex:1;min-width:140px;padding:12px">حفظ التعديلات</button>
+        <a href="{% url 'frontend:vip:vip_booking_detail' booking.id %}" class="btn btn-o">إلغاء</a>
+      </div>
+    </form>
+    {% if is_admin %}
+    <form method="post" action="{% url 'frontend:vip:vip_booking_detail' booking.id %}" style="margin-top:12px" onsubmit="return confirm('حذف حجز VIP نهائياً؟ لا يمكن التراجع.')">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="delete">
+      <button type="submit" class="btn btn-d btn-sm">حذف الحجز نهائياً (مدير فقط)</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

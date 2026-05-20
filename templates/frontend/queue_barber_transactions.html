@@ -41,7 +41,7 @@
     {% if tickets_page.object_list %}
     <div class="tbl-wrap" style="margin-top:12px">
       <table>
-        <thead><tr><th>الزبون</th><th>العمولة</th><th>المبلغ</th><th>ربح الحلاق</th><th>الحالة</th><th>الوقت</th></tr></thead>
+        <thead><tr><th>الزبون</th><th>العمولة</th><th>المبلغ</th><th>ربح الحلاق</th><th>الحالة</th><th>الوقت</th><th>إجراءات</th></tr></thead>
         <tbody>
           {% for t in tickets_page %}
           <tr>
@@ -57,6 +57,7 @@
               {% else %}<span class="badge">{{ t.status }}</span>{% endif %}
             </td>
             <td style="color:var(--muted);font-size:.76rem;white-space:nowrap">{{ t.created_at|date:"d/m/Y H:i" }}</td>
+            <td>{% include "frontend/partials/ticket_row_actions.html" with t=t barber_redirect=barber.pk %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -68,4 +69,5 @@
     {% endif %}
   </div>
 </div>
+{% include "frontend/partials/ticket_edit_modal.html" with active_barbers=active_barbers barber_redirect=barber.pk %}
 {% endblock %}

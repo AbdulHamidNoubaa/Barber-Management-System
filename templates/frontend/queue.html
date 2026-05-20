@@ -2,7 +2,7 @@
 
 {% block title %}نقطة البيع — {{ sys.business_name|default:"Barber Pro" }}{% endblock %}
 {% block header_title %}نقطة البيع{% endblock %}
-{% block header_subtitle %}تسجيل زبون · متابعة الطابور{% endblock %}
+{% block header_subtitle %}{% endblock %}
 
 {% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
@@ -23,644 +23,773 @@
   }
 </script>
 <style>
-.queue-page { display: flex; flex-direction: column; gap: 1rem; }
+/* ——— صفحة بدون سكرول ——— */
+.page-wrap:has(.queue-v2) { padding: .5rem 1rem .75rem; max-width: 100%; }
+.page-wrap:has(.queue-v2) .page-header { display: none; }
+.page-wrap:has(.queue-v2) .messages { margin-bottom: .4rem; }
 
-/* شريط حالة مضغوط */
-.queue-strip {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: .75rem; padding: .65rem 1rem;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
-}
-.queue-strip-metrics { display: flex; flex-wrap: wrap; gap: .35rem; }
-.qs-pill {
-  display: inline-flex; align-items: center; gap: .35rem;
-  padding: .35rem .65rem; border-radius: 999px;
-  font-size: .72rem; font-weight: 800; background: #f1f5f9; color: var(--text-2);
-}
-.qs-pill b { font-size: .95rem; margin-left: .15rem; }
-.qs-pill.warn { background: var(--warning-light); color: #b45309; }
-.qs-pill.run { background: var(--primary-light); color: var(--primary); }
-.qs-pill.done { background: var(--success-light); color: var(--success); }
-.queue-shift-mini {
-  font-size: .72rem; font-weight: 700; color: var(--muted);
-  display: inline-flex; align-items: center; gap: .4rem;
-}
-.queue-shift-mini .dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
-.queue-shift-mini.off .dot { background: #f59e0b; }
-
-/* لوحة تسجيل الزبون — المحور الرئيسي */
-.pos-panel {
-  background: var(--surface);
-  border: 2px solid #bfdbfe;
-  border-radius: var(--radius-xl);
-  box-shadow: 0 8px 32px rgba(30, 64, 175, .12), var(--shadow-md);
+.queue-v2 {
+  height: calc(100vh - var(--nav-h) - 2.5rem);
+  min-height: 520px;
+  max-height: calc(100dvh - var(--nav-h) - 2.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
   overflow: hidden;
 }
-.pos-panel-top {
-  padding: 1rem 1.25rem 1.1rem;
-  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+
+/* شريط علوي */
+.qv-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .45rem .65rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+.qv-toolbar-title {
+  font-size: .88rem;
+  font-weight: 900;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.qv-metrics { display: flex; flex-wrap: wrap; gap: .3rem; }
+.qm {
+  font-size: .68rem; font-weight: 800; padding: .28rem .55rem;
+  border-radius: 999px; background: #f1f5f9; color: var(--text-2);
+}
+.qm b { margin-right: .15rem; }
+.qm.w { background: var(--warning-light); color: #b45309; }
+.qm.r { background: var(--primary-light); color: var(--primary); }
+.qm.d { background: var(--success-light); color: var(--success); }
+.qv-actions { display: flex; gap: .35rem; flex-wrap: wrap; }
+.qv-btn {
+  padding: .4rem .7rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+  color: var(--text-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  transition: .12s;
+}
+.qv-btn:hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+.qv-btn.primary { background: var(--grad-primary); color: #fff; border-color: transparent; }
+.qv-btn.primary:hover { filter: brightness(1.08); color: #fff; }
+.qv-btn .badge-count {
+  background: rgba(255,255,255,.25);
+  padding: .05rem .4rem;
+  border-radius: 999px;
+  font-size: .65rem;
+}
+.qv-btn:not(.primary) .badge-count {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.qv-shift {
+  font-size: .65rem; font-weight: 700; color: var(--muted);
+  display: flex; align-items: center; gap: .3rem;
+}
+.qv-shift .dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+.qv-shift.off .dot { background: #f59e0b; }
+
+/* المحتوى الرئيسي */
+.qv-main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: .5rem;
+  overflow: hidden;
+}
+
+/* لوحة POS */
+.qv-pos {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 2px solid #93c5fd;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 24px rgba(30,64,175,.1);
+  overflow: hidden;
+}
+.qv-pos-hd {
+  flex-shrink: 0;
+  padding: .5rem .75rem;
+  background: linear-gradient(90deg, #1e3a8a, #2563eb);
   color: #fff;
-  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .75rem;
+  font-size: .78rem;
+  font-weight: 800;
 }
-.pos-panel-top h2 {
-  margin: 0; font-size: 1.2rem; font-weight: 900; letter-spacing: -.02em;
-  display: flex; align-items: center; gap: .5rem;
+.qv-pos-bd {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: .65rem .75rem .75rem;
 }
-.pos-panel-top .ui-icon { color: #fff; stroke: #fff; }
-.pos-panel-top p { margin: .3rem 0 0; font-size: .78rem; opacity: .9; max-width: 22rem; line-height: 1.45; }
-.pos-live-counts {
-  display: flex; gap: .5rem; flex-wrap: wrap;
-}
-.pos-live-counts span {
-  padding: .35rem .7rem; border-radius: var(--radius-md);
-  background: rgba(255,255,255,.15); font-size: .72rem; font-weight: 800;
-  border: 1px solid rgba(255,255,255,.2);
-}
-.pos-live-counts b { font-size: 1rem; display: inline-block; margin-left: .2rem; }
+.qv-pos-bd::-webkit-scrollbar { width: 5px; }
+.qv-pos-bd::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
-.pos-panel-body { padding: 1.15rem 1.25rem 1.25rem; }
-
-.pos-step { margin-bottom: 1.1rem; }
-.pos-step:last-of-type { margin-bottom: 0; }
-.pos-step-hd {
-  display: flex; align-items: center; gap: .55rem;
-  margin-bottom: .65rem;
+.barber-strip {
+  display: flex;
+  gap: .4rem;
+  overflow-x: auto;
+  padding-bottom: .35rem;
+  margin-bottom: .5rem;
+  scrollbar-width: thin;
 }
-.pos-step-num {
-  width: 26px; height: 26px; border-radius: 50%;
-  background: var(--primary); color: #fff;
-  font-size: .78rem; font-weight: 900;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.pos-step-title { font-size: .82rem; font-weight: 800; color: var(--text); }
-.pos-step-hint { font-size: .7rem; color: var(--muted); margin-right: auto; }
-
-/* اختيار الحلاق — شريط أفقي */
-.barber-rail {
-  display: flex; flex-wrap: wrap; gap: .55rem;
-}
-.barber-tile {
-  display: flex; align-items: center; gap: .6rem;
-  min-width: 140px; flex: 1 1 140px; max-width: 220px;
-  padding: .75rem .9rem;
+.barber-chip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .45rem .65rem;
   border: 2px solid var(--border-light);
   border-radius: var(--radius-md);
   background: #f8fafc;
-  cursor: pointer; transition: .15s;
-  text-align: right;
+  cursor: pointer;
+  transition: .12s;
 }
-.barber-tile:hover { border-color: #93c5fd; background: #fff; transform: translateY(-1px); }
-.barber-tile.is-on {
+.barber-chip:hover { border-color: #93c5fd; background: #fff; }
+.barber-chip.is-on {
   border-color: var(--primary);
-  background: linear-gradient(135deg, #eff6ff, #fff);
-  box-shadow: 0 0 0 1px var(--primary), 0 4px 14px rgba(30,64,175,.15);
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px var(--primary);
 }
-.barber-tile .bt-ava {
-  width: 42px; height: 42px; border-radius: 50%;
+.barber-chip .bc-ava {
+  width: 32px; height: 32px; border-radius: 50%;
   background: var(--grad-primary); color: #fff;
-  font-weight: 900; font-size: .95rem;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  font-weight: 900; font-size: .8rem;
+  display: flex; align-items: center; justify-content: center;
 }
-.barber-tile.is-on .bt-ava { box-shadow: 0 4px 12px rgba(30,64,175,.35); }
-.barber-tile .bt-name { font-weight: 800; font-size: .88rem; display: block; }
-.barber-tile .bt-comm {
-  font-size: .68rem; font-weight: 800; color: var(--success);
-  margin-top: .15rem; display: block;
-}
-.barber-tile-missing {
-  padding: 1rem; text-align: center; color: var(--muted);
-  font-size: .82rem; background: var(--warning-light);
-  border-radius: var(--radius-md); border: 1px dashed var(--warning);
-}
+.barber-chip .bc-name { font-weight: 800; font-size: .78rem; white-space: nowrap; }
+.barber-chip .bc-comm { font-size: .62rem; font-weight: 800; color: var(--success); display: block; }
 
-/* حقول الزبون */
-.pos-grid {
+.pos-compact {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: .85rem;
+  gap: .5rem;
 }
-.pos-grid .span-2 { grid-column: 1 / -1; }
-.pos-field label {
-  display: block; font-size: .72rem; font-weight: 800;
-  color: var(--text-2); margin-bottom: .3rem;
-}
-.pos-field label .req { color: var(--danger); }
-.pos-field label .opt { color: var(--muted); font-weight: 600; }
+.pos-compact .full { grid-column: 1 / -1; }
+.pos-lbl { font-size: .68rem; font-weight: 800; color: var(--muted); margin-bottom: .2rem; display: block; }
+.pos-lbl .req { color: var(--danger); }
 .pos-input-name {
-  font-size: 1.15rem !important; font-weight: 700 !important;
-  padding: .85rem 1rem !important;
+  font-size: 1.05rem !important; font-weight: 800 !important;
+  padding: .65rem .75rem !important;
   border-width: 2px !important;
-  border-radius: var(--radius-md) !important;
 }
-.pos-input-name:focus {
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 0 4px var(--primary-glow) !important;
+.pos-row-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: .4rem;
+  align-items: stretch;
+  flex-wrap: wrap;
 }
-.pos-field input.field-input,
-.pos-field textarea.field-input,
-.pos-field select.field-input {
-  width: 100%; padding: .6rem .75rem;
-  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-  font-size: .88rem;
-}
-.pos-input-amount { font-size: 1.05rem !important; font-weight: 800 !important; text-align: center; }
-
-.chip-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .45rem; }
-.chip {
-  padding: .4rem .75rem; border-radius: 999px;
-  border: 1.5px solid var(--border); background: #fff;
-  font-size: .75rem; font-weight: 800; color: var(--text-2);
-  cursor: pointer; transition: .12s;
-}
-.chip:hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
-.chip.is-on { border-color: var(--primary); background: var(--primary); color: #fff; }
-.chip.price-chip { min-width: 3rem; text-align: center; }
-
-.pos-comm-preview {
-  margin-top: .5rem; padding: .55rem .75rem;
-  background: #f0fdf4; border: 1px solid #bbf7d0;
-  border-radius: var(--radius-sm);
-  font-size: .75rem; font-weight: 700; color: var(--success);
-  display: none;
-}
-.pos-comm-preview.show { display: block; }
-
-.pay-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+.pay-toggles { display: flex; gap: .35rem; flex: 1; min-width: 140px; }
 .pay-tog {
-  padding: .75rem; border-radius: var(--radius-md);
-  border: 2px solid var(--border); background: #fff;
-  font-weight: 800; font-size: .85rem; color: var(--muted);
-  display: flex; align-items: center; justify-content: center; gap: .4rem;
-  transition: .15s;
+  flex: 1; padding: .55rem;
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  background: #fff; font-weight: 800; font-size: .75rem; color: var(--muted);
 }
 .pay-tog.is-on { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
-
-.pos-submit-row {
-  display: flex; flex-wrap: wrap; align-items: stretch; gap: .65rem;
-  margin-top: 1.15rem; padding-top: 1rem;
-  border-top: 2px dashed var(--border-light);
-}
 .btn-pos-submit {
-  flex: 1; min-width: 200px;
-  padding: 1rem 1.25rem;
-  font-size: 1.05rem; font-weight: 900;
+  flex: 2; min-width: 120px;
+  padding: .6rem 1rem;
+  font-size: .88rem; font-weight: 900;
   border-radius: var(--radius-md);
-  background: var(--grad-primary); color: #fff;
-  border: none; cursor: pointer;
-  box-shadow: 0 6px 20px rgba(30, 64, 175, .35);
-  display: flex; align-items: center; justify-content: center; gap: .5rem;
-  transition: transform .15s, box-shadow .15s;
+  background: var(--grad-primary); color: #fff; border: none;
+  box-shadow: 0 4px 14px rgba(30,64,175,.3);
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
 }
-.btn-pos-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(30,64,175,.42); }
-.btn-pos-submit:active { transform: translateY(0); }
 .btn-pos-clear {
-  padding: 1rem 1.1rem;
-  border-radius: var(--radius-md);
+  padding: .6rem .75rem;
   border: 2px solid var(--border);
+  border-radius: var(--radius-md);
   background: #fff;
-  font-weight: 800; font-size: .82rem; color: var(--muted);
-}
-.pos-kbd-hint {
-  width: 100%; font-size: .68rem; color: var(--muted-light);
-  text-align: center; margin-top: .25rem;
-}
-.field-err-inline { color: var(--danger); font-size: .7rem; font-weight: 700; margin-top: .2rem; display: block; }
-
-/* فلاتر */
-.queue-filters {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); overflow: hidden;
-}
-.queue-filters summary {
-  padding: .65rem 1rem; font-weight: 800; font-size: .78rem;
-  cursor: pointer; list-style: none;
-  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 800; font-size: .75rem;
   color: var(--muted);
 }
-.queue-filters summary::-webkit-details-marker { display: none; }
-.queue-filters-body {
-  padding: 1rem; border-top: 1px solid var(--border-light);
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: .7rem; align-items: end;
+.pos-tools { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .35rem; }
+.pos-tool-btn {
+  padding: .3rem .55rem;
+  font-size: .68rem; font-weight: 800;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
 }
-.queue-filters .field label { font-size: .68rem; font-weight: 700; color: var(--muted); margin-bottom: .2rem; display: block; }
-.queue-filters input, .queue-filters select {
-  width: 100%; padding: .45rem .6rem; border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm); font-size: .78rem;
+.pos-tool-btn:hover { border-color: var(--primary); color: var(--primary); }
+.pos-comm-preview {
+  font-size: .68rem; font-weight: 700; color: var(--success);
+  padding: .35rem .5rem; background: #f0fdf4;
+  border-radius: var(--radius-sm);
+  border: 1px solid #bbf7d0;
+  display: none;
+  margin-top: .25rem;
 }
-.queue-filters-actions { grid-column: 1 / -1; display: flex; gap: .4rem; flex-wrap: wrap; }
+.pos-comm-preview.show { display: block; }
+.field-err-inline { color: var(--danger); font-size: .65rem; font-weight: 700; }
 
-/* الطابور والسجل */
-.queue-ops { display: flex; flex-direction: column; gap: 1rem; }
-.kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+/* معاينة الطابور */
+.qv-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.qv-preview {
+  flex: 1;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.qv-preview-hd {
+  flex-shrink: 0;
+  padding: .45rem .6rem;
+  font-size: .72rem;
+  font-weight: 800;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.qv-preview-hd.wait-h { background: var(--warning-light); color: #b45309; }
+.qv-preview-hd.run-h { background: var(--primary-light); color: var(--primary); }
+.qv-preview-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: .35rem;
+}
+.qv-preview-item {
+  padding: .4rem .5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  margin-bottom: .3rem;
+  font-size: .72rem;
+  background: #fafbfc;
+}
+.qv-preview-item .pi-name { font-weight: 800; }
+.qv-preview-item .pi-meta { color: var(--muted); font-size: .65rem; margin-top: .1rem; }
+.qv-preview-item .pi-barber { color: var(--primary); font-weight: 800; }
+.qv-preview-empty { text-align: center; padding: .75rem; color: var(--muted-light); font-size: .68rem; }
+
+/* ——— Modals ——— */
+.ui-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  background: rgba(15, 23, 42, .55);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+  padding: .75rem;
+}
+.ui-modal.is-open { display: flex; }
+.ui-modal-box {
+  background: #fff;
+  border-radius: var(--radius-xl);
+  width: min(960px, 100%);
+  max-height: min(88vh, 860px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,.2);
+  animation: modalIn .2s ease;
+}
+.ui-modal-box.wide { width: min(1100px, 100%); }
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(.96) translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.ui-modal-hd {
+  flex-shrink: 0;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+  background: linear-gradient(180deg, #f8fafc, #fff);
+}
+.ui-modal-hd h3 { margin: 0; font-size: .95rem; font-weight: 900; }
+.ui-modal-hd p { margin: .2rem 0 0; font-size: .72rem; color: var(--muted); }
+.ui-modal-x {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ui-modal-x:hover { background: var(--danger-light); border-color: #fca5a5; color: var(--danger); }
+.ui-modal-bd {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: .85rem 1rem 1rem;
+}
+
+/* Kanban داخل المودال */
+.kanban-modal { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
 .kanban-col {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); display: flex; flex-direction: column;
-  max-height: 480px; overflow: hidden; box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 640px);
+  overflow: hidden;
 }
 .kanban-col.wait { border-top: 3px solid var(--warning); }
 .kanban-col.run { border-top: 3px solid var(--primary); }
 .kanban-col-hd {
-  padding: .7rem 1rem; display: flex; justify-content: space-between; align-items: center;
-  border-bottom: 1px solid var(--border-light); flex-shrink: 0;
+  padding: .55rem .75rem;
+  display: flex; justify-content: space-between;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
 }
 .kanban-col.wait .kanban-col-hd { background: var(--warning-light); }
 .kanban-col.run .kanban-col-hd { background: var(--primary-light); }
-.kanban-col-title { font-weight: 800; font-size: .82rem; }
-.kanban-count { font-size: .72rem; font-weight: 800; padding: .12rem .45rem; border-radius: 999px; background: #fff; }
-.kanban-body { padding: .65rem; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: .65rem; }
-.kanban-empty { text-align: center; padding: 1.75rem; font-size: .78rem; color: var(--muted-light); }
+.kanban-col-title { font-weight: 800; font-size: .78rem; }
+.kanban-count { font-size: .68rem; font-weight: 800; background: #fff; padding: .1rem .4rem; border-radius: 999px; }
+.kanban-body { padding: .5rem; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: .5rem; }
+.kanban-empty { text-align: center; padding: 1.25rem; font-size: .75rem; color: var(--muted-light); }
 
 .q-card {
-  background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: .9rem; box-shadow: var(--shadow-xs);
+  background: #fff; border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: .75rem;
 }
-.q-card .nm { font-weight: 800; font-size: .92rem; }
-.q-card .meta { font-size: .76rem; color: var(--muted); margin-top: .2rem; line-height: 1.4; }
-.q-card .tags { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .45rem; }
+.q-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .35rem; }
+.q-card .nm { font-weight: 800; font-size: .85rem; }
+.q-card .meta { font-size: .72rem; color: var(--muted); margin-top: .15rem; }
+.q-card .tags { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .35rem; }
 .comm-info {
-  margin-top: .45rem; padding: .45rem .6rem; background: #f0fdf4;
-  border-radius: var(--radius-sm); font-size: .7rem; font-weight: 700; color: var(--success);
+  margin-top: .35rem; padding: .35rem .5rem;
+  background: #f0fdf4; border-radius: var(--radius-sm);
+  font-size: .68rem; font-weight: 700; color: var(--success);
   border: 1px solid #bbf7d0;
 }
-.q-actions { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .55rem; }
+.q-actions { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .45rem; }
 .pay-row, .edit-price-row, .reassign-row {
-  display: flex; flex-wrap: wrap; gap: .35rem; align-items: center;
-  margin-top: .55rem; padding-top: .55rem; border-top: 1px dashed var(--border-light);
+  display: flex; flex-wrap: wrap; gap: .3rem; align-items: center;
+  margin-top: .45rem; padding-top: .45rem;
+  border-top: 1px dashed var(--border-light);
 }
 .pay-row input, .pay-row select, .edit-price-row input, .reassign-row select {
-  padding: .38rem .5rem; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: .76rem;
+  padding: .35rem .45rem; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: .72rem;
 }
-.ras-label { font-size: .7rem; font-weight: 700; color: var(--muted); }
+.ras-label { font-size: .68rem; font-weight: 700; color: var(--muted); }
 
-.history-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
+/* فلاتر المودال */
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: .6rem;
+  align-items: end;
 }
-.history-hd {
-  padding: .85rem 1.1rem; border-bottom: 1px solid var(--border);
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem;
-  background: #f8fafc;
+.filter-grid .field label { font-size: .68rem; font-weight: 700; color: var(--muted); margin-bottom: .2rem; display: block; }
+.filter-grid input, .filter-grid select {
+  width: 100%; padding: .45rem .55rem;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: .78rem;
 }
-.history-hd h3 { margin: 0; font-size: .9rem; font-weight: 800; }
-.history-hd p { margin: .15rem 0 0; font-size: .72rem; color: var(--muted); }
-.st-tbl { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.filter-actions { grid-column: 1 / -1; display: flex; gap: .4rem; margin-top: .25rem; }
+
+.chip-panel { display: flex; flex-wrap: wrap; gap: .35rem; }
+.chip {
+  padding: .35rem .65rem; border-radius: 999px;
+  border: 1.5px solid var(--border); background: #fff;
+  font-size: .72rem; font-weight: 800; cursor: pointer;
+}
+.chip:hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+.chip.is-on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.st-tbl { width: 100%; border-collapse: collapse; font-size: .76rem; }
 .st-tbl th {
-  background: #f1f5f9; padding: .55rem .8rem; text-align: right;
-  font-size: .68rem; font-weight: 700; color: var(--muted); border-bottom: 1px solid var(--border);
+  background: #f1f5f9; padding: .5rem .65rem; text-align: right;
+  font-size: .66rem; font-weight: 700; color: var(--muted);
+  border-bottom: 1px solid var(--border); position: sticky; top: 0;
 }
-.st-tbl td { padding: .55rem .8rem; border-top: 1px solid var(--border-light); vertical-align: middle; }
-.st-tbl tbody tr:hover td { background: #f8fafc; }
-.tag-yes { color: var(--success); font-weight: 800; font-size: .72rem; }
-.tag-no { color: var(--danger); font-weight: 700; font-size: .72rem; }
-.history-empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted); font-size: .85rem; }
+.st-tbl td { padding: .5rem .65rem; border-top: 1px solid var(--border-light); vertical-align: middle; }
+.tbl-scroll { overflow-x: auto; }
+.st-tbl-hist .hist-party { min-width: 200px; }
+.hist-cust { font-weight: 800; font-size: .82rem; color: var(--text); line-height: 1.3; }
+.hist-phone { font-size: .68rem; color: var(--muted); margin-top: .1rem; }
+.hist-barber-line {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .35rem;
+  margin-top: .4rem; padding: .35rem .5rem;
+  background: #eff6ff; border-radius: var(--radius-sm);
+  border: 1px solid #bfdbfe;
+  font-size: .72rem;
+}
+.hist-ava {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--grad-primary); color: #fff;
+  font-size: .65rem; font-weight: 900;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.hist-barber-lbl { color: var(--muted); font-weight: 700; }
+.hist-barber-name { color: var(--primary); font-weight: 800; }
+.hist-comm-pct {
+  font-size: .65rem; font-weight: 800; color: var(--success);
+  background: var(--success-light); padding: .1rem .4rem; border-radius: 999px;
+}
+.hist-svc {
+  margin-top: .3rem; font-size: .68rem; color: var(--muted);
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hist-amt, .hist-comm-amt { white-space: nowrap; font-size: .78rem; }
+.hist-amt strong, .hist-comm-amt strong { color: var(--text); }
+.hist-comm-amt strong { color: var(--success); }
+.tag-yes { color: var(--success); font-weight: 800; font-size: .7rem; }
+.tag-no { color: var(--danger); font-weight: 700; font-size: .7rem; }
+.history-empty { text-align: center; padding: 2rem; color: var(--muted); }
 
-@media (max-width: 720px) {
-  .pos-grid { grid-template-columns: 1fr; }
-  .barber-tile { max-width: none; }
-  .pos-submit-row { flex-direction: column; }
+#ticketEditModal { z-index: 4100; }
+
+@media (max-width: 900px) {
+  .qv-main { grid-template-columns: 1fr; }
+  .qv-side { flex-direction: row; max-height: 140px; }
+  .qv-preview { flex: 1; }
+  .kanban-modal { grid-template-columns: 1fr; }
+  .queue-v2 { height: auto; max-height: none; overflow: visible; }
+  .page-wrap:has(.queue-v2) { padding-bottom: 1.5rem; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="queue-page" id="queuePage">
+<div class="queue-v2" id="queuePage">
 
-  <!-- شريط أرقام سريع -->
-  <div class="queue-strip">
-    <div class="queue-strip-metrics">
-      <span class="qs-pill warn">انتظار <b>{{ queue_stats.waiting }}</b></span>
-      <span class="qs-pill run">تنفيذ <b>{{ queue_stats.in_progress }}</b></span>
-      <span class="qs-pill done">مكتمل <b>{{ queue_stats.completed }}</b></span>
-      <span class="qs-pill">إيراد <b>{{ queue_stats.revenue|floatformat:0 }}</b> {{ sys.currency|default:"د.ل" }}</span>
-    </div>
-    <div class="queue-shift-mini {% if not current_shift %}off{% endif %}">
-      <span class="dot"></span>
-      {% if current_shift %}شفت: {{ current_shift.name|default:"مفتوح" }} · {{ current_shift.started_at|date:"H:i" }}
-      {% else %}لا يوجد شفت مفتوح{% endif %}
-    </div>
-  </div>
-
-  <!-- لوحة تسجيل الزبون -->
-  <section class="pos-panel" id="posPanel">
-    <div class="pos-panel-top">
-      <div>
-        <h2>{% include "frontend/partials/icon.html" with name="queue" size=22 extra_class="ui-icon" %} تسجيل زبون جديد</h2>
-        <p>اختر الحلاق → أدخل الاسم → اضغط Enter أو الزر الأخضر</p>
+  <header class="qv-toolbar">
+    <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap">
+      <span class="qv-toolbar-title">{% include "frontend/partials/icon.html" with name="queue" size=18 %} نقطة البيع</span>
+      <div class="qv-metrics">
+        <span class="qm w">انتظار <b>{{ queue_stats.waiting }}</b></span>
+        <span class="qm r">تنفيذ <b>{{ queue_stats.in_progress }}</b></span>
+        <span class="qm d">مكتمل <b>{{ queue_stats.completed }}</b></span>
+        <span class="qm">إيراد <b>{{ queue_stats.revenue|floatformat:0 }}</b></span>
       </div>
-      <div class="pos-live-counts">
-        <span>انتظار <b>{{ queue_stats.waiting }}</b></span>
-        <span>تنفيذ <b>{{ queue_stats.in_progress }}</b></span>
-      </div>
+      <span class="qv-shift {% if not current_shift %}off{% endif %}">
+        <span class="dot"></span>
+        {% if current_shift %}شفت {{ current_shift.name|default:"مفتوح" }}{% else %}لا شفت{% endif %}
+      </span>
     </div>
+    <div class="qv-actions">
+      <button type="button" class="qv-btn primary" data-open="modalQueue">
+        الطابور <span class="badge-count">{{ queue_stats.waiting|add:queue_stats.in_progress }}</span>
+      </button>
+      <button type="button" class="qv-btn" data-open="modalHistory">
+        السجل <span class="badge-count">{{ recent_page.paginator.count|default:0 }}</span>
+      </button>
+      <button type="button" class="qv-btn" data-open="modalFilters">تصفية</button>
+      <button type="button" class="qv-btn" data-open="modalExtras">أسعار وخدمات</button>
+    </div>
+  </header>
 
-    <div class="pos-panel-body">
-      <form method="post" novalidate id="addForm" autocomplete="off">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="create_ticket">
-        <input type="hidden" name="_return_qs" value="{{ return_qs }}">
-        <div style="display:none">{{ form.barber_id }}{{ form.payment_method }}</div>
+  <div class="qv-main">
+    <section class="qv-pos" id="posPanel">
+      <div class="qv-pos-hd">تسجيل زبون — اختر الحلاق ثم الاسم · Enter للإرسال</div>
+      <div class="qv-pos-bd">
+        <form method="post" novalidate id="addForm" autocomplete="off">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_ticket">
+          <input type="hidden" name="_return_qs" value="{{ return_qs }}">
+          <div style="display:none">{{ form.barber_id }}{{ form.payment_method }}</div>
 
-        <!-- 1 — الحلاق -->
-        <div class="pos-step">
-          <div class="pos-step-hd">
-            <span class="pos-step-num">1</span>
-            <span class="pos-step-title">الحلاق</span>
-            <span class="pos-step-hint">مطلوب</span>
-          </div>
-          <div class="barber-rail" id="barberRail" role="list">
+          <div class="barber-strip" id="barberRail" role="list">
             {% for bp in form.barber_id.field.queryset %}
-            <button type="button" class="barber-tile" role="listitem"
+            <button type="button" class="barber-chip" role="listitem"
               data-barber-id="{{ bp.pk }}"
-              data-barber-name="{{ bp.display_name }}"
               data-barber-comm="{{ bp.default_commission_pct|floatformat:0 }}"
-              data-barber-initial="{{ bp.initial_letter }}"
               aria-pressed="false">
-              <span class="bt-ava">{{ bp.initial_letter }}</span>
+              <span class="bc-ava">{{ bp.initial_letter }}</span>
               <span>
-                <span class="bt-name">{{ bp.display_name }}</span>
-                <span class="bt-comm">{{ bp.default_commission_pct|floatformat:0 }}% عمولة</span>
+                <span class="bc-name">{{ bp.display_name }}</span>
+                <span class="bc-comm">{{ bp.default_commission_pct|floatformat:0 }}%</span>
               </span>
             </button>
             {% empty %}
-            <div class="barber-tile-missing span-2">لا يوجد حلاقون نشطون — فعّل الحلاقين من الإعدادات</div>
+            <span style="font-size:.75rem;color:var(--muted)">لا حلاقين نشطين</span>
             {% endfor %}
           </div>
-          <span class="field-err-inline" data-for="barber_id" id="errBarber"></span>
-        </div>
+          <span class="field-err-inline" id="errBarber"></span>
 
-        <!-- 2 — بيانات الزبون -->
-        <div class="pos-step">
-          <div class="pos-step-hd">
-            <span class="pos-step-num">2</span>
-            <span class="pos-step-title">بيانات الزبون والدفع</span>
-          </div>
-          <div class="pos-grid">
-            <div class="pos-field span-2">
-              <label>اسم الزبون <span class="req">*</span></label>
+          <div class="pos-compact">
+            <div class="full">
+              <label class="pos-lbl">اسم الزبون <span class="req">*</span></label>
               {{ form.customer_name }}
-              <span class="field-err-inline" data-for="customer_name" id="errName"></span>
+              <span class="field-err-inline" id="errName"></span>
             </div>
-            <div class="pos-field">
-              <label>الجوال <span class="opt">(اختياري)</span></label>
+            <div>
+              <label class="pos-lbl">الجوال</label>
               {{ form.customer_phone }}
             </div>
-            <div class="pos-field">
-              <label>المبلغ <span class="opt">(اختياري)</span></label>
+            <div>
+              <label class="pos-lbl">المبلغ</label>
               {{ form.initial_amount }}
-              <div class="chip-row" id="priceChips">
-                <button type="button" class="chip price-chip" data-price="10">10</button>
-                <button type="button" class="chip price-chip" data-price="15">15</button>
-                <button type="button" class="chip price-chip" data-price="20">20</button>
-                <button type="button" class="chip price-chip" data-price="25">25</button>
-                <button type="button" class="chip price-chip" data-price="30">30</button>
-                <button type="button" class="chip price-chip" data-price="40">40</button>
-                <button type="button" class="chip price-chip" data-price="50">50</button>
-              </div>
               <div class="pos-comm-preview" id="posCommPreview"></div>
             </div>
-            <div class="pos-field span-2">
-              <label>الخدمة / ملاحظة</label>
+            <div class="full">
+              <label class="pos-lbl">ملاحظة / خدمة</label>
               {{ form.description }}
-              {% if quick_services %}
-              <div class="chip-row" id="serviceChips">
-                {% for svc in quick_services %}
-                <button type="button" class="chip service-chip"
-                  data-name="{{ svc.name }}"
-                  data-price="{{ svc.base_price|floatformat:0 }}">{{ svc.name }}{% if svc.base_price > 0 %} · {{ svc.base_price|floatformat:0 }}{% endif %}</button>
-                {% endfor %}
-              </div>
-              {% endif %}
             </div>
-            <div class="pos-field span-2">
-              <label>طريقة الدفع</label>
+            <div class="pos-row-actions">
               <div class="pay-toggles" id="payToggles">
-                <button type="button" class="pay-tog is-on" data-pay="CASH">{% include "frontend/partials/icon.html" with name="currency" size=18 %} نقدي</button>
+                <button type="button" class="pay-tog is-on" data-pay="CASH">نقدي</button>
                 <button type="button" class="pay-tog" data-pay="CARD">بطاقة</button>
               </div>
+              <button type="submit" class="btn-pos-submit" id="btnPosSubmit">
+                {% include "frontend/partials/icon.html" with name="check" size=18 %} إضافة للطابور
+              </button>
+              <button type="button" class="btn-pos-clear" id="btnPosClear">مسح</button>
+            </div>
+            <div class="pos-tools full">
+              <button type="button" class="pos-tool-btn" data-open="modalExtras">أسعار سريعة وخدمات</button>
+              <button type="button" class="pos-tool-btn" data-open="modalQueue">إدارة الطابور ({{ queue_stats.waiting|add:queue_stats.in_progress }})</button>
             </div>
           </div>
-        </div>
+        </form>
+      </div>
+    </section>
 
-        <div class="pos-submit-row">
-          <button type="submit" class="btn-pos-submit" id="btnPosSubmit">
-            {% include "frontend/partials/icon.html" with name="check" size=20 %} إضافة للطابور
-          </button>
-          <button type="button" class="btn-pos-clear" id="btnPosClear" title="مسح الحقول مع الإبقاء على الحلاق">مسح</button>
+    <aside class="qv-side">
+      <div class="qv-preview">
+        <div class="qv-preview-hd wait-h">انتظار <b>{{ waiting|length }}</b></div>
+        <div class="qv-preview-list">
+          {% for t in waiting|slice:":6" %}
+          <div class="qv-preview-item">
+            <div class="pi-name">{{ t.customer.name }}</div>
+            <div class="pi-meta"><span class="pi-barber">الحلاق: {{ t.barber.display_name }}</span>{% if t.total > 0 %} · {{ t.total|floatformat:0 }}{% endif %}</div>
+          </div>
+          {% empty %}
+          <div class="qv-preview-empty">فارغ</div>
+          {% endfor %}
         </div>
-        <p class="pos-kbd-hint">اختصار: Enter بعد الاسم · Ctrl+Enter من أي حقل</p>
+      </div>
+      <div class="qv-preview">
+        <div class="qv-preview-hd run-h">تنفيذ <b>{{ in_progress|length }}</b></div>
+        <div class="qv-preview-list">
+          {% for t in in_progress|slice:":6" %}
+          <div class="qv-preview-item">
+            <div class="pi-name">{{ t.customer.name }}</div>
+            <div class="pi-meta"><span class="pi-barber">الحلاق: {{ t.barber.display_name }}</span>{% if t.total > 0 %} · {{ t.total|floatformat:0 }}{% endif %}</div>
+          </div>
+          {% empty %}
+          <div class="qv-preview-empty">فارغ</div>
+          {% endfor %}
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- مودال: الطابور -->
+<div id="modalQueue" class="ui-modal" role="dialog" aria-modal="true" hidden>
+  <div class="ui-modal-box wide">
+    <div class="ui-modal-hd">
+      <div>
+        <h3>إدارة الطابور</h3>
+        <p>انتظار {{ waiting|length }} · تنفيذ {{ in_progress|length }}</p>
+      </div>
+      <button type="button" class="ui-modal-x" data-close-modal>✕</button>
+    </div>
+    <div class="ui-modal-bd">
+      {% include "frontend/partials/queue_kanban.html" %}
+    </div>
+  </div>
+</div>
+
+<!-- مودال: السجل -->
+<div id="modalHistory" class="ui-modal" role="dialog" aria-modal="true" hidden>
+  <div class="ui-modal-box wide">
+    <div class="ui-modal-hd">
+      <div>
+        <h3>سجل المعاملات</h3>
+        <p>{{ recent_page.paginator.count|default:0 }} نتيجة — يظهر اسم الحلاق مع كل معاملة</p>
+      </div>
+      <button type="button" class="ui-modal-x" data-close-modal>✕</button>
+    </div>
+    <div class="ui-modal-bd">
+      {% include "frontend/partials/queue_history_modal.html" %}
+    </div>
+  </div>
+</div>
+
+<!-- مودال: التصفية -->
+<div id="modalFilters" class="ui-modal" role="dialog" aria-modal="true" hidden>
+  <div class="ui-modal-box">
+    <div class="ui-modal-hd">
+      <div><h3>تصفية السجل</h3><p>تُطبَّق على سجل المعاملات والإحصائيات</p></div>
+      <button type="button" class="ui-modal-x" data-close-modal>✕</button>
+    </div>
+    <div class="ui-modal-bd">
+      <form method="get" class="filter-grid" id="filterForm">
+        <div class="field" style="grid-column:1/-1">
+          <label>بحث</label>
+          <input type="search" name="q" value="{{ filters.q }}" placeholder="اسم أو جوال">
+        </div>
+        <div class="field">
+          <label>الحلاق</label>
+          <select name="barber">
+            <option value="">الكل</option>
+            {% for bp in active_barbers %}
+            <option value="{{ bp.id }}" {% if filters.barber == bp.id|stringformat:"d" %}selected{% endif %}>{{ bp.display_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>الحالة</label>
+          <select name="status">
+            <option value="">الكل</option>
+            {% for val, label in ticket_status_choices %}
+            <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>
+              {% if val == "WAITING" %}انتظار{% elif val == "IN_PROGRESS" %}تنفيذ{% elif val == "COMPLETED" %}مكتمل{% elif val == "CANCELLED" %}ملغى{% else %}{{ label }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>الدفع</label>
+          <select name="pay">
+            <option value="">الكل</option>
+            <option value="CASH" {% if filters.pay == "CASH" %}selected{% endif %}>نقدي</option>
+            <option value="CARD" {% if filters.pay == "CARD" %}selected{% endif %}>بطاقة</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>الفترة</label>
+          <select name="period" id="periodSelect">
+            <option value="today" {% if filters.period == "today" %}selected{% endif %}>اليوم</option>
+            <option value="all" {% if filters.period == "all" %}selected{% endif %}>الكل</option>
+            <option value="custom" {% if filters.period == "custom" %}selected{% endif %}>مخصص</option>
+          </select>
+        </div>
+        <div class="field period-custom" style="{% if filters.period != 'custom' %}display:none{% endif %}">
+          <label>من</label>
+          <input type="date" name="from" value="{{ filters.from }}">
+        </div>
+        <div class="field period-custom" style="{% if filters.period != 'custom' %}display:none{% endif %}">
+          <label>إلى</label>
+          <input type="date" name="to" value="{{ filters.to }}">
+        </div>
+        <div class="field" style="display:flex;align-items:flex-end">
+          <label style="display:flex;align-items:center;gap:.35rem;font-size:.75rem;cursor:pointer">
+            <input type="checkbox" name="shift_only" value="1" {% if filters.shift_only %}checked{% endif %} {% if not current_shift %}disabled{% endif %}>
+            الشفت الحالي فقط
+          </label>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn btn-p btn-sm">تطبيق</button>
+          <a href="{% url 'frontend:queue' %}" class="btn btn-o btn-sm">مسح</a>
+        </div>
       </form>
     </div>
-  </section>
+  </div>
+</div>
 
-  <!-- فلاتر السجل (مطوية افتراضياً) -->
-  <details class="queue-filters">
-    <summary>تصفية سجل المعاملات ({{ recent_page.paginator.count|default:0 }} نتيجة)</summary>
-    <form method="get" class="queue-filters-body">
-      <div class="field" style="grid-column:span 2">
-        <label>بحث</label>
-        <input type="search" name="q" value="{{ filters.q }}" placeholder="اسم أو جوال">
-      </div>
-      <div class="field">
-        <label>الحلاق</label>
-        <select name="barber">
-          <option value="">الكل</option>
-          {% for bp in active_barbers %}
-          <option value="{{ bp.id }}" {% if filters.barber == bp.id|stringformat:"d" %}selected{% endif %}>{{ bp.display_name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label>الحالة</label>
-        <select name="status">
-          <option value="">الكل</option>
-          {% for val, label in ticket_status_choices %}
-          <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>
-            {% if val == "WAITING" %}انتظار{% elif val == "IN_PROGRESS" %}قيد التنفيذ{% elif val == "COMPLETED" %}مكتمل{% elif val == "CANCELLED" %}ملغى{% else %}{{ label }}{% endif %}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label>الدفع</label>
-        <select name="pay">
-          <option value="">الكل</option>
-          <option value="CASH" {% if filters.pay == "CASH" %}selected{% endif %}>نقدي</option>
-          <option value="CARD" {% if filters.pay == "CARD" %}selected{% endif %}>بطاقة</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>الفترة</label>
-        <select name="period" id="periodSelect">
-          <option value="today" {% if filters.period == "today" %}selected{% endif %}>اليوم</option>
-          <option value="all" {% if filters.period == "all" %}selected{% endif %}>الكل</option>
-          <option value="custom" {% if filters.period == "custom" %}selected{% endif %}>مخصص</option>
-        </select>
-      </div>
-      <div class="field period-custom" style="{% if filters.period != 'custom' %}display:none{% endif %}">
-        <label>من</label>
-        <input type="date" name="from" value="{{ filters.from }}">
-      </div>
-      <div class="field period-custom" style="{% if filters.period != 'custom' %}display:none{% endif %}">
-        <label>إلى</label>
-        <input type="date" name="to" value="{{ filters.to }}">
-      </div>
-      <div class="field" style="display:flex;align-items:flex-end">
-        <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;margin:0;font-size:.75rem">
-          <input type="checkbox" name="shift_only" value="1" {% if filters.shift_only %}checked{% endif %} {% if not current_shift %}disabled{% endif %}>
-          الشفت الحالي فقط
-        </label>
-      </div>
-      <div class="queue-filters-actions">
-        <button type="submit" class="btn btn-p btn-sm">تطبيق</button>
-        <a href="{% url 'frontend:queue' %}" class="btn btn-o btn-sm">مسح</a>
-      </div>
-    </form>
-  </details>
-
-  <div class="queue-ops">
-    <div class="kanban">
-      <section class="kanban-col wait">
-        <div class="kanban-col-hd">
-          <span class="kanban-col-title" style="color:#b45309">في الانتظار</span>
-          <span class="kanban-count">{{ waiting|length }}</span>
-        </div>
-        <div class="kanban-body">
-          {% for t in waiting %}
-          <article class="q-card">
-            <div class="nm">{{ t.customer.name }}</div>
-            <div class="meta"><strong>{{ t.barber.display_name }}</strong>{% if t.description %} · {{ t.description }}{% endif %}</div>
-            <div class="tags">
-              {% if t.payment_method == "CASH" %}<span class="badge badge-green">نقدي</span>{% else %}<span class="badge badge-blue">بطاقة</span>{% endif %}
-              {% if t.total > 0 %}<span class="badge" style="font-weight:800">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د.ل" }}</span>{% else %}<span class="badge badge-yellow">بدون سعر</span>{% endif %}
-            </div>
-            <div class="q-actions">
-              <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_status"><input type="hidden" name="ticket_id" value="{{ t.id }}"><input type="hidden" name="status" value="IN_PROGRESS">
-                <button class="btn btn-p btn-sm" type="submit">بدء الخدمة</button>
-              </form>
-              <form method="post" onsubmit="return swalConfirm(this,'إلغاء','إلغاء الحجز؟','warning')">{% csrf_token %}<input type="hidden" name="action" value="update_status"><input type="hidden" name="ticket_id" value="{{ t.id }}"><input type="hidden" name="status" value="CANCELLED">
-                <button class="btn btn-d btn-sm" type="submit">إلغاء</button>
-              </form>
-            </div>
-            <form method="post" class="edit-price-row">{% csrf_token %}<input type="hidden" name="action" value="edit_price"><input type="hidden" name="ticket_id" value="{{ t.id }}">
-              <input type="number" name="amount" placeholder="السعر" step="1" min="0" value="{% if t.total > 0 %}{{ t.total|floatformat:0 }}{% endif %}" required>
-              <button class="btn btn-o btn-sm" type="submit">تعديل السعر</button>
-            </form>
-          </article>
-          {% empty %}
-          <div class="kanban-empty">الطابور فارغ — سجّل زبوناً أعلاه</div>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section class="kanban-col run">
-        <div class="kanban-col-hd">
-          <span class="kanban-col-title" style="color:var(--primary)">قيد التنفيذ</span>
-          <span class="kanban-count">{{ in_progress|length }}</span>
-        </div>
-        <div class="kanban-body">
-          {% for t in in_progress %}
-          <article class="q-card">
-            <div class="nm">{{ t.customer.name }}</div>
-            <div class="meta"><strong>{{ t.barber.display_name }}</strong>{% if t.description %} · {{ t.description }}{% endif %}</div>
-            <div class="tags">
-              {% if t.payment_method == "CASH" %}<span class="badge badge-green">نقدي</span>{% else %}<span class="badge badge-blue">بطاقة</span>{% endif %}
-              {% if t.total > 0 %}<span class="badge" style="font-weight:800">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د.ل" }}</span>{% else %}<span class="badge badge-yellow">حدّد السعر</span>{% endif %}
-            </div>
-            {% if t.total > 0 and t.barber_commission_total > 0 %}
-            <div class="comm-info">عمولة الحلاق: {{ t.barber_commission_total|floatformat:0 }} {{ sys.currency|default:"د.ل" }}</div>
-            {% endif %}
-            <form method="post" class="pay-row" onsubmit="return validatePayment(this)" data-comm-pct="{{ t.barber.default_commission_pct }}">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="complete_with_payment">
-              <input type="hidden" name="ticket_id" value="{{ t.id }}">
-              <select name="method" required>
-                <option value="CASH" {% if t.payment_method == "CASH" %}selected{% endif %}>نقدي</option>
-                <option value="CARD" {% if t.payment_method == "CARD" %}selected{% endif %}>بطاقة</option>
-              </select>
-              <input type="number" name="amount" placeholder="المبلغ" step="1" min="1" value="{% if t.total > 0 %}{{ t.total|floatformat:0 }}{% endif %}" required oninput="calcCommPreview(this)">
-              <span class="live-comm" style="font-size:.68rem;color:var(--success);font-weight:700"></span>
-              <button class="btn btn-g btn-sm" type="submit">إنهاء ودفع</button>
-            </form>
-            <form method="post" class="edit-price-row">{% csrf_token %}<input type="hidden" name="action" value="edit_price"><input type="hidden" name="ticket_id" value="{{ t.id }}">
-              <input type="number" name="amount" step="1" min="0" value="{% if t.total > 0 %}{{ t.total|floatformat:0 }}{% endif %}" required>
-              <button class="btn btn-o btn-sm" type="submit">تعديل</button>
-            </form>
-            <div class="reassign-row">
-              <form method="post" style="display:contents" onsubmit="return swalConfirm(this,'نقل','نقل لحلاق آخر؟','question')">{% csrf_token %}<input type="hidden" name="action" value="reassign_barber"><input type="hidden" name="ticket_id" value="{{ t.id }}">
-                <span class="ras-label">نقل:</span>
-                <select name="new_barber_id" required>
-                  <option value="">—</option>
-                  {% for bp in active_barbers %}{% if bp.pk != t.barber.pk %}<option value="{{ bp.pk }}">{{ bp.display_name }}</option>{% endif %}{% endfor %}
-                </select>
-                <button class="btn btn-p btn-sm" type="submit">نقل</button>
-              </form>
-              <form method="post" style="margin-right:auto" onsubmit="return swalConfirm(this,'إلغاء','إلغاء؟','warning')">{% csrf_token %}<input type="hidden" name="action" value="update_status"><input type="hidden" name="ticket_id" value="{{ t.id }}"><input type="hidden" name="status" value="CANCELLED">
-                <button class="btn btn-d btn-sm" type="submit">إلغاء</button>
-              </form>
-            </div>
-          </article>
-          {% empty %}
-          <div class="kanban-empty">لا عمل جارٍ</div>
-          {% endfor %}
-        </div>
-      </section>
+<!-- مودال: أسعار وخدمات -->
+<div id="modalExtras" class="ui-modal" role="dialog" aria-modal="true" hidden>
+  <div class="ui-modal-box">
+    <div class="ui-modal-hd">
+      <div><h3>أسعار سريعة وخدمات</h3><p>اضغط لملء الحقول في نموذج التسجيل</p></div>
+      <button type="button" class="ui-modal-x" data-close-modal>✕</button>
     </div>
-
-    <section class="history-card">
-      <div class="history-hd">
-        <div>
-          <h3>سجل المعاملات</h3>
-          <p>{% if recent_page.paginator.count %}{{ recent_page.paginator.count }} معاملة{% else %}لا نتائج للتصفية الحالية{% endif %}</p>
-        </div>
+    <div class="ui-modal-bd">
+      <p class="pos-lbl" style="margin-bottom:.35rem">أسعار</p>
+      <div class="chip-panel" id="priceChips">
+        <button type="button" class="chip price-chip" data-price="10">10</button>
+        <button type="button" class="chip price-chip" data-price="15">15</button>
+        <button type="button" class="chip price-chip" data-price="20">20</button>
+        <button type="button" class="chip price-chip" data-price="25">25</button>
+        <button type="button" class="chip price-chip" data-price="30">30</button>
+        <button type="button" class="chip price-chip" data-price="40">40</button>
+        <button type="button" class="chip price-chip" data-price="50">50</button>
       </div>
-      {% if recent_page.object_list %}
-      <div style="overflow-x:auto">
-        <table class="st-tbl">
-          <thead>
-            <tr><th>الزبون</th><th>الحلاق</th><th>المبلغ</th><th>عمولة</th><th>الحالة</th><th>الوقت</th><th></th></tr>
-          </thead>
-          <tbody>
-            {% for t in recent_page %}
-            <tr>
-              <td style="font-weight:700">{{ t.customer.name }}</td>
-              <td>{{ t.barber.display_name }}</td>
-              <td>{% if t.total > 0 %}<strong>{{ t.total|floatformat:0 }}</strong>{% else %}—{% endif %}</td>
-              <td>{% if t.barber_commission_total > 0 %}{{ t.barber_commission_total|floatformat:0 }}{% else %}—{% endif %}</td>
-              <td>
-                {% if t.status == "WAITING" %}<span class="badge badge-yellow">انتظار</span>
-                {% elif t.status == "IN_PROGRESS" %}<span class="badge badge-blue">تنفيذ</span>
-                {% elif t.status == "COMPLETED" %}<span class="tag-yes">مكتمل</span>
-                {% elif t.status == "CANCELLED" %}<span class="tag-no">ملغى</span>
-                {% endif %}
-              </td>
-              <td style="color:var(--muted);font-size:.74rem">{{ t.created_at|date:"d/m H:i" }}</td>
-              <td>
-                {% if t.status == "COMPLETED" %}
-                  {% for r in t.receipts.all %}
-                  <a href="{% url 'frontend:vip:receipt_print' r.id %}" target="_blank" class="btn btn-o btn-sm">طباعة</a>
-                  {% empty %}
-                  <a href="{% url 'frontend:vip:generate_receipt' %}?ticket_id={{ t.id }}" class="btn btn-o btn-sm">وصل</a>
-                  {% endfor %}
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      {% if quick_services %}
+      <p class="pos-lbl" style="margin:1rem 0 .35rem">خدمات</p>
+      <div class="chip-panel" id="serviceChips">
+        {% for svc in quick_services %}
+        <button type="button" class="chip service-chip" data-name="{{ svc.name }}" data-price="{{ svc.base_price|floatformat:0 }}">
+          {{ svc.name }}{% if svc.base_price > 0 %} · {{ svc.base_price|floatformat:0 }}{% endif %}
+        </button>
+        {% endfor %}
       </div>
-      {% include "frontend/partials/pagination.html" with page_obj=recent_page query_string=query_string %}
-      {% else %}
-      <div class="history-empty">لا معاملات — سجّل أول زبون من اللوحة أعلاه</div>
       {% endif %}
-    </section>
+    </div>
   </div>
 </div>
 
 <script>
   var CURRENCY = '{{ sys.currency|default:"د.ل" }}';
   var LAST_BARBER_KEY = 'bms_queue_last_barber';
+
+  (function () {
+    var openId = null;
+    function openModal(id) {
+      var m = document.getElementById(id);
+      if (!m) return;
+      document.querySelectorAll('.ui-modal.is-open').forEach(function (x) {
+        x.classList.remove('is-open');
+        x.setAttribute('hidden', '');
+      });
+      m.classList.add('is-open');
+      m.removeAttribute('hidden');
+      openId = id;
+      document.body.style.overflow = 'hidden';
+    }
+    function closeModals() {
+      document.querySelectorAll('.ui-modal.is-open').forEach(function (m) {
+        m.classList.remove('is-open');
+        m.setAttribute('hidden', '');
+      });
+      openId = null;
+      document.body.style.overflow = '';
+    }
+    document.querySelectorAll('[data-open]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openModal(btn.getAttribute('data-open')); });
+    });
+    document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
+      btn.addEventListener('click', closeModals);
+    });
+    document.querySelectorAll('.ui-modal').forEach(function (m) {
+      m.addEventListener('click', function (e) { if (e.target === m) closeModals(); });
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeModals();
+    });
+    if (location.hash === '#pos') {
+      setTimeout(function () {
+        var n = document.getElementById('posCustomerName');
+        if (n) n.focus();
+      }, 120);
+    }
+    document.querySelectorAll('.qv-preview-item').forEach(function (el) {
+      el.style.cursor = 'pointer';
+      el.title = 'فتح إدارة الطابور';
+      el.addEventListener('click', function () { openModal('modalQueue'); });
+    });
+  })();
 
   (function () {
     var periodSel = document.getElementById('periodSelect');
@@ -675,7 +804,7 @@
 
   (function () {
     var rq = '{{ return_qs|escapejs }}';
-    document.querySelectorAll('.queue-page form[method="post"]').forEach(function (f) {
+    document.querySelectorAll('.queue-v2 form[method="post"], .ui-modal form[method="post"]').forEach(function (f) {
       if (!f.querySelector('[name="_return_qs"]') && rq) {
         var h = document.createElement('input');
         h.type = 'hidden'; h.name = '_return_qs'; h.value = rq;
@@ -687,7 +816,6 @@
   (function () {
     var addForm = document.getElementById('addForm');
     if (!addForm) return;
-
     var barberSelect = document.getElementById('posBarberSelect');
     var paySelect = document.getElementById('posPaymentSelect');
     var rail = document.getElementById('barberRail');
@@ -702,64 +830,48 @@
     var btnClear = document.getElementById('btnPosClear');
 
     function getCommPct() {
-      var active = rail && rail.querySelector('.barber-tile.is-on');
+      var active = rail && rail.querySelector('.barber-chip.is-on');
       return active ? parseFloat(active.getAttribute('data-barber-comm')) || 0 : 0;
     }
-
     function updateCommPreview() {
       if (!commPrev || !amtInp) return;
       var amt = parseFloat(amtInp.value) || 0;
       var pct = getCommPct();
       if (amt > 0 && pct > 0) {
         var comm = Math.round(amt * pct / 100);
-        commPrev.textContent = 'عمولة الحلاق: ' + comm + ' ' + CURRENCY + ' · صافي المحل: ' + (amt - comm) + ' ' + CURRENCY;
+        commPrev.textContent = 'عمولة ' + comm + ' · صافي ' + (amt - comm) + ' ' + CURRENCY;
         commPrev.classList.add('show');
-      } else {
-        commPrev.classList.remove('show');
-      }
+      } else commPrev.classList.remove('show');
     }
-
-    function syncBarberTiles() {
+    function syncBarber() {
       if (!rail || !barberSelect) return;
       var v = barberSelect.value;
-      rail.querySelectorAll('.barber-tile').forEach(function (t) {
-        var on = t.getAttribute('data-barber-id') === v;
-        t.classList.toggle('is-on', on);
-        t.setAttribute('aria-pressed', on ? 'true' : 'false');
+      rail.querySelectorAll('.barber-chip').forEach(function (c) {
+        var on = c.getAttribute('data-barber-id') === v;
+        c.classList.toggle('is-on', on);
+        c.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
       updateCommPreview();
     }
-
     function selectBarber(id, focusName) {
       if (!barberSelect) return;
       barberSelect.value = id;
       if (errBarber) errBarber.textContent = '';
       try { sessionStorage.setItem(LAST_BARBER_KEY, id); } catch (e) {}
-      syncBarberTiles();
-      if (focusName !== false && nameInp) {
-        nameInp.focus();
-        nameInp.select();
-      }
+      syncBarber();
+      if (focusName !== false && nameInp) { nameInp.focus(); nameInp.select(); }
     }
-
     if (rail && barberSelect) {
       rail.addEventListener('click', function (e) {
-        var t = e.target.closest('.barber-tile');
-        if (!t) return;
-        selectBarber(t.getAttribute('data-barber-id'), true);
+        var c = e.target.closest('.barber-chip');
+        if (!c) return;
+        selectBarber(c.getAttribute('data-barber-id'), true);
       });
       var saved = null;
       try { saved = sessionStorage.getItem(LAST_BARBER_KEY); } catch (e) {}
-      if (saved && rail.querySelector('[data-barber-id="' + saved + '"]')) {
-        selectBarber(saved, false);
-      } else if (barberSelect.value) {
-        syncBarberTiles();
-      }
-      if (!barberSelect.value && rail.querySelector('.barber-tile')) {
-        setTimeout(function () { if (nameInp) nameInp.focus(); }, 100);
-      }
+      if (saved && rail.querySelector('[data-barber-id="' + saved + '"]')) selectBarber(saved, false);
+      else syncBarber();
     }
-
     if (toggles && paySelect) {
       toggles.addEventListener('click', function (e) {
         var b = e.target.closest('.pay-tog');
@@ -770,88 +882,72 @@
         });
       });
     }
-
-    document.getElementById('priceChips') && document.getElementById('priceChips').addEventListener('click', function (e) {
-      var c = e.target.closest('.price-chip');
-      if (!c || !amtInp) return;
-      amtInp.value = c.getAttribute('data-price');
-      document.querySelectorAll('.price-chip').forEach(function (x) {
-        x.classList.toggle('is-on', x === c);
+    function bindChips(root) {
+      if (!root) return;
+      root.addEventListener('click', function (e) {
+        var pc = e.target.closest('.price-chip');
+        if (pc && amtInp) {
+          amtInp.value = pc.getAttribute('data-price');
+          document.querySelectorAll('.price-chip').forEach(function (x) { x.classList.toggle('is-on', x === pc); });
+          updateCommPreview();
+          if (nameInp && !nameInp.value.trim()) nameInp.focus();
+          return;
+        }
+        var sc = e.target.closest('.service-chip');
+        if (sc) {
+          if (descInp) descInp.value = sc.getAttribute('data-name');
+          var p = sc.getAttribute('data-price');
+          if (p && parseFloat(p) > 0 && amtInp) {
+            amtInp.value = p;
+            document.querySelectorAll('.price-chip').forEach(function (x) { x.classList.remove('is-on'); });
+            updateCommPreview();
+          }
+          document.querySelectorAll('.service-chip').forEach(function (x) { x.classList.toggle('is-on', x === sc); });
+          if (nameInp) nameInp.focus();
+        }
+        var extras = document.getElementById('modalExtras');
+        if (extras && extras.classList.contains('is-open') && (pc || sc)) {
+          extras.classList.remove('is-open');
+          extras.setAttribute('hidden', '');
+          document.body.style.overflow = '';
+        }
       });
+    }
+    bindChips(document.getElementById('priceChips'));
+    bindChips(document.getElementById('serviceChips'));
+    if (amtInp) amtInp.addEventListener('input', function () {
+      document.querySelectorAll('.price-chip').forEach(function (x) { x.classList.remove('is-on'); });
       updateCommPreview();
-      if (nameInp && !nameInp.value.trim()) nameInp.focus();
     });
-
-    document.getElementById('serviceChips') && document.getElementById('serviceChips').addEventListener('click', function (e) {
-      var c = e.target.closest('.service-chip');
-      if (!c) return;
-      if (descInp) descInp.value = c.getAttribute('data-name');
-      var p = c.getAttribute('data-price');
-      if (p && parseFloat(p) > 0 && amtInp) {
-        amtInp.value = p;
-        document.querySelectorAll('.price-chip').forEach(function (x) { x.classList.remove('is-on'); });
-        updateCommPreview();
-      }
-      document.querySelectorAll('.service-chip').forEach(function (x) {
-        x.classList.toggle('is-on', x === c);
-      });
+    if (btnClear) btnClear.addEventListener('click', function () {
+      if (nameInp) nameInp.value = '';
+      if (phoneInp) phoneInp.value = '';
+      if (descInp) descInp.value = '';
+      if (amtInp) amtInp.value = '';
+      document.querySelectorAll('.price-chip, .service-chip').forEach(function (x) { x.classList.remove('is-on'); });
+      if (commPrev) commPrev.classList.remove('show');
+      if (errName) errName.textContent = '';
       if (nameInp) nameInp.focus();
     });
-
-    if (amtInp) {
-      amtInp.addEventListener('input', function () {
-        document.querySelectorAll('.price-chip').forEach(function (x) { x.classList.remove('is-on'); });
-        updateCommPreview();
-      });
-    }
-
-    if (btnClear) {
-      btnClear.addEventListener('click', function () {
-        if (nameInp) nameInp.value = '';
-        if (phoneInp) phoneInp.value = '';
-        if (descInp) descInp.value = '';
-        if (amtInp) amtInp.value = '';
-        document.querySelectorAll('.price-chip, .service-chip').forEach(function (x) { x.classList.remove('is-on'); });
-        if (commPrev) commPrev.classList.remove('show');
-        if (errName) errName.textContent = '';
-        if (nameInp) nameInp.focus();
-      });
-    }
-
     addForm.addEventListener('submit', function (e) {
       if (errName) errName.textContent = '';
       if (errBarber) errBarber.textContent = '';
       var errs = [];
-      if (nameInp && !nameInp.value.trim()) {
-        if (errName) errName.textContent = 'أدخل اسم الزبون';
-        errs.push('اسم الزبون مطلوب');
-      }
-      if (barberSelect && !barberSelect.value) {
-        if (errBarber) errBarber.textContent = 'اختر الحلاق أولاً';
-        errs.push('اختر الحلاق');
-      }
-      if (errs.length) {
-        e.preventDefault();
-        swalAlert('بيانات ناقصة', errs.join('\n'), 'error');
-        if (!barberSelect.value && rail) rail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        else if (nameInp) nameInp.focus();
-      }
+      if (nameInp && !nameInp.value.trim()) { if (errName) errName.textContent = 'مطلوب'; errs.push('اسم الزبون'); }
+      if (barberSelect && !barberSelect.value) { if (errBarber) errBarber.textContent = 'اختر الحلاق'; errs.push('الحلاق'); }
+      if (errs.length) { e.preventDefault(); swalAlert('بيانات ناقصة', errs.join(' · '), 'error'); }
     });
-
     addForm.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
       var tag = (e.target.tagName || '').toLowerCase();
       if (tag === 'textarea') return;
       if (e.ctrlKey || e.metaKey || tag === 'input') {
-        if (tag === 'input' && e.target.type === 'button') return;
+        if (e.target.type === 'button') return;
         e.preventDefault();
         document.getElementById('btnPosSubmit').click();
       }
     });
-
-    if (nameInp && !nameInp.value) {
-      setTimeout(function () { nameInp.focus(); }, 150);
-    }
+    setTimeout(function () { if (nameInp) nameInp.focus(); }, 150);
   })();
 
   function calcCommPreview(inp) {
@@ -873,13 +969,7 @@
     return true;
   }
   document.querySelectorAll('.pay-row input[name="amount"]').forEach(function (inp) { calcCommPreview(inp); });
-
-  if (location.hash === '#pos' || document.referrer.indexOf('queue') >= 0) {
-    var panel = document.getElementById('posPanel');
-    if (panel) setTimeout(function () {
-      var n = document.getElementById('posCustomerName');
-      if (n) n.focus();
-    }, 200);
-  }
 </script>
+
+{% include "frontend/partials/ticket_edit_modal.html" with active_barbers=active_barbers return_qs=return_qs %}
 {% endblock %}

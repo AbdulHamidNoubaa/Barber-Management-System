@@ -1,0 +1,23 @@
+<div class="tx-actions" style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center">
+  <button type="button" class="btn btn-o btn-sm js-ticket-edit"
+    data-id="{{ t.id }}"
+    data-name="{{ t.customer.name|escape }}"
+    data-phone="{{ t.customer.phone|default:''|escape }}"
+    data-barber="{{ t.barber_id }}"
+    data-desc="{{ t.description|default:''|escape }}"
+    data-amount="{% if t.total > 0 %}{{ t.total|floatformat:0 }}{% endif %}"
+    data-pay="{{ t.payment_method|default:'CASH' }}"
+    data-status="{{ t.status }}">تعديل</button>
+  <form method="post" style="display:inline" onsubmit="return typeof swalConfirm==='function'?swalConfirm(this,'حذف المعاملة','حذف نهائي؟ لا يمكن التراجع.','warning'):confirm('حذف المعاملة؟')">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_ticket">
+    <input type="hidden" name="ticket_id" value="{{ t.id }}">
+    {% if return_qs %}<input type="hidden" name="_return_qs" value="{{ return_qs }}">{% endif %}
+    {% if barber_redirect %}<input type="hidden" name="barber_redirect" value="{{ barber_redirect }}">{% endif %}
+    {% if ret_barber %}<input type="hidden" name="_ret_barber" value="{{ ret_barber }}">{% endif %}
+    {% if ret_from %}<input type="hidden" name="_ret_from" value="{{ ret_from }}">{% endif %}
+    {% if ret_to %}<input type="hidden" name="_ret_to" value="{{ ret_to }}">{% endif %}
+    {% if ret_page %}<input type="hidden" name="_ret_page" value="{{ ret_page }}">{% endif %}
+    <button type="submit" class="btn btn-d btn-sm">حذف</button>
+  </form>
+</div>

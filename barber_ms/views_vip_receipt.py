@@ -5,6 +5,7 @@ Views لـ VIP Bookings و Receipts و Treasury Reports
 from decimal import Decimal
 from datetime import datetime, timedelta
 
+from django.db import transaction
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Q
@@ -70,6 +71,8 @@ def vip_bookings_list(request):
         'completed_page': completed_page,
         'completed_paginator': paginator,
         'completed_query_string': querystring_excluding_page(request, page_param='cpage'),
+        'is_admin': _is_admin(request.user),
+        'can_edit_vip': _is_cashier_or_admin(request.user),
     }
     return render(request, 'frontend/vip_bookings.html', context)
 
@@ -159,6 +162,13 @@ def vip_booking_detail(request, booking_id):
             booking.status = 'cancelled'
             booking.save()
             messages.success(request, "تم إلغاء الحجز.")
+
+        elif action == 'delete' and _is_admin(request.user):
+            with transaction.atomic():
+                Receipt.objects.filter(vip_booking=booking).delete()
+                booking.delete()
+            messages.success(request, "تم حذف حجز VIP نهائياً.")
+            return redirect('frontend:vip:vip_bookings_list')
         
         elif action == 'pay':
             booking.paid_amount = booking.final_price
@@ -172,8 +182,83 @@ def vip_booking_detail(request, booking_id):
     context = {
         'booking': booking,
         'receipts': receipts,
+        'is_admin': _is_admin(request.user),
+        'can_edit_vip': _is_cashier_or_admin(request.user),
     }
     return render(request, 'frontend/vip_booking_detail.html', context)
+
+
+@login_required
+def edit_vip_booking(request, booking_id):
+    """تعديل حجز VIP (كاشير أو مدير)."""
+    booking = get_object_or_404(VIPBooking.objects.select_related("customer"), id=booking_id)
+    if not _is_cashier_or_admin(request.user):
+        messages.error(request, "ليس لديك صلاحية تعديل حجز VIP.")
+        return redirect("frontend:dashboard")
+
+    if request.method == "POST":
+        form = VIPBookingForm(request.POST)
+        if form.is_valid():
+            try:
+                customer = booking.customer
+                customer.name = form.cleaned_data["customer_name"]
+                customer.phone = form.cleaned_data["customer_phone"]
+                customer.save(update_fields=["name", "phone", "updated_at"])
+
+                booking.booking_type = form.cleaned_data["booking_type"]
+                booking.booking_date = form.cleaned_data["booking_date"]
+                booking.booking_time = form.cleaned_data["booking_time"]
+                booking.barbers_count = form.cleaned_data["barbers_count"]
+                booking.estimated_duration_hours = form.cleaned_data["estimated_duration_hours"]
+                booking.base_price = form.cleaned_data["base_price"]
+                booking.discount_pct = form.cleaned_data["discount_pct"]
+                booking.description = form.cleaned_data.get("description") or ""
+                booking.special_requests = form.cleaned_data.get("special_requests") or ""
+                booking.save()
+
+                for receipt in booking.receipts.all():
+                    receipt.amount = booking.final_price
+                    receipt.customer_name = customer.name
+                    receipt.customer_phone = customer.phone
+                    receipt.items_description = (
+                        f"حجز VIP - {booking.get_booking_type_display()} - {booking.description}"
+                    )
+                    receipt.save(
+                        update_fields=[
+                            "amount",
+                            "customer_name",
+                            "customer_phone",
+                            "items_description",
+                            "updated_at",
+                        ]
+                    )
+
+                messages.success(request, "تم تحديث حجز VIP.")
+                return redirect("frontend:vip:vip_booking_detail", booking_id=booking.id)
+            except Exception as e:
+                messages.error(request, f"حدث خطأ: {e}")
+    else:
+        form = VIPBookingForm(
+            initial={
+                "customer_name": booking.customer.name,
+                "customer_phone": booking.customer.phone,
+                "booking_type": booking.booking_type,
+                "booking_date": booking.booking_date,
+                "booking_time": booking.booking_time,
+                "barbers_count": booking.barbers_count,
+                "estimated_duration_hours": booking.estimated_duration_hours,
+                "base_price": booking.base_price,
+                "discount_pct": booking.discount_pct,
+                "description": booking.description,
+                "special_requests": booking.special_requests,
+            }
+        )
+
+    return render(
+        request,
+        "frontend/edit_vip_booking.html",
+        {"form": form, "booking": booking, "is_admin": _is_admin(request.user)},
+    )
 
 
 # ─── Receipt Views ──────────────────────────────────────

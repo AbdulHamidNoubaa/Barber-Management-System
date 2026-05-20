@@ -1,0 +1,92 @@
+<div id="ticketEditModal" class="ui-modal" role="dialog" aria-modal="true" hidden>
+  <div class="ui-modal-box">
+    <div class="ui-modal-hd">
+      <div><h3>تعديل المعاملة</h3><p>تعديل بيانات الزبون والحالة والمبلغ</p></div>
+      <button type="button" class="ui-modal-x" id="ticketEditClose" data-close-modal>✕</button>
+    </div>
+    <div class="ui-modal-bd">
+      <form method="post" id="ticketEditForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="edit_ticket">
+        <input type="hidden" name="ticket_id" id="ticketEditId" value="">
+        <input type="hidden" name="_return_qs" value="{{ return_qs|default:'' }}">
+        {% if barber_redirect %}<input type="hidden" name="barber_redirect" value="{{ barber_redirect }}">{% endif %}
+        {% if ret_barber %}<input type="hidden" name="_ret_barber" value="{{ ret_barber }}">{% endif %}
+        {% if ret_from %}<input type="hidden" name="_ret_from" value="{{ ret_from }}">{% endif %}
+        {% if ret_to %}<input type="hidden" name="_ret_to" value="{{ ret_to }}">{% endif %}
+        {% if ret_page %}<input type="hidden" name="_ret_page" value="{{ ret_page }}">{% endif %}
+        <div class="field" style="margin-bottom:.55rem">
+          <label class="pos-lbl">اسم الزبون</label>
+          <input type="text" name="customer_name" id="ticketEditName" class="field-input" required maxlength="120">
+        </div>
+        <div class="field" style="margin-bottom:.55rem">
+          <label class="pos-lbl">الجوال</label>
+          <input type="text" name="customer_phone" id="ticketEditPhone" class="field-input" maxlength="30">
+        </div>
+        <div class="field" style="margin-bottom:.55rem">
+          <label class="pos-lbl">الحلاق</label>
+          <select name="barber_id" id="ticketEditBarber" class="field-input" required>
+            {% for bp in active_barbers %}
+            <option value="{{ bp.pk }}">{{ bp.display_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:.55rem">
+          <label class="pos-lbl">ملاحظة</label>
+          <input type="text" name="description" id="ticketEditDesc" class="field-input" maxlength="255">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.55rem">
+          <div class="field">
+            <label class="pos-lbl">المبلغ</label>
+            <input type="number" name="amount" id="ticketEditAmount" class="field-input" min="0" step="1">
+          </div>
+          <div class="field">
+            <label class="pos-lbl">الدفع</label>
+            <select name="payment_method" id="ticketEditPay" class="field-input">
+              <option value="CASH">نقدي</option>
+              <option value="CARD">بطاقة</option>
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:.75rem">
+          <label class="pos-lbl">الحالة</label>
+          <select name="status" id="ticketEditStatus" class="field-input">
+            <option value="WAITING">انتظار</option>
+            <option value="IN_PROGRESS">قيد التنفيذ</option>
+            <option value="COMPLETED">مكتمل</option>
+            <option value="CANCELLED">ملغى</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button type="submit" class="btn btn-p" style="flex:1">حفظ</button>
+          <button type="button" class="btn btn-o" id="ticketEditCancel" data-close-modal>إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var modal = document.getElementById('ticketEditModal');
+  if (!modal) return;
+  function openEdit(btn) {
+    document.getElementById('ticketEditId').value = btn.getAttribute('data-id') || '';
+    document.getElementById('ticketEditName').value = btn.getAttribute('data-name') || '';
+    document.getElementById('ticketEditPhone').value = btn.getAttribute('data-phone') || '';
+    document.getElementById('ticketEditBarber').value = btn.getAttribute('data-barber') || '';
+    document.getElementById('ticketEditDesc').value = btn.getAttribute('data-desc') || '';
+    document.getElementById('ticketEditAmount').value = btn.getAttribute('data-amount') || '';
+    document.getElementById('ticketEditPay').value = btn.getAttribute('data-pay') || 'CASH';
+    document.getElementById('ticketEditStatus').value = btn.getAttribute('data-status') || 'WAITING';
+    document.querySelectorAll('.ui-modal.is-open').forEach(function (x) {
+      if (x.id !== 'ticketEditModal') { x.classList.remove('is-open'); x.setAttribute('hidden', ''); }
+    });
+    modal.classList.add('is-open');
+    modal.removeAttribute('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  document.querySelectorAll('.js-ticket-edit').forEach(function (b) {
+    b.addEventListener('click', function () { openEdit(b); });
+  });
+})();
+</script>

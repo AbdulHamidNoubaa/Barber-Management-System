@@ -1,0 +1,61 @@
+{% if recent_page.object_list %}
+<div class="tbl-scroll">
+  <table class="st-tbl st-tbl-hist">
+    <thead>
+      <tr>
+        <th>الزبون والحلاق</th>
+        <th>المبلغ</th>
+        <th>عمولة الحلاق</th>
+        <th>الحالة</th>
+        <th>الوقت</th>
+        <th>وصل</th>
+        <th>إجراءات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in recent_page %}
+      <tr>
+        <td class="hist-party">
+          <div class="hist-cust">{{ t.customer.name }}</div>
+          {% if t.customer.phone %}
+          <div class="hist-phone">{{ t.customer.phone }}</div>
+          {% endif %}
+          <div class="hist-barber-line">
+            <span class="hist-ava" title="الحلاق">{{ t.barber.initial_letter }}</span>
+            <span class="hist-barber-lbl">الحلاق:</span>
+            <strong class="hist-barber-name">{{ t.barber.display_name }}</strong>
+            <span class="hist-comm-pct">{{ t.barber.default_commission_pct|floatformat:0 }}%</span>
+          </div>
+          {% if t.description %}
+          <div class="hist-svc">{{ t.description }}</div>
+          {% endif %}
+        </td>
+        <td class="hist-amt">{% if t.total > 0 %}<strong>{{ t.total|floatformat:0 }}</strong> {{ sys.currency|default:"د.ل" }}{% else %}—{% endif %}</td>
+        <td class="hist-comm-amt">{% if t.barber_commission_total > 0 %}<strong>{{ t.barber_commission_total|floatformat:0 }}</strong> {{ sys.currency|default:"د.ل" }}{% else %}—{% endif %}</td>
+        <td>
+          {% if t.status == "WAITING" %}<span class="badge badge-yellow">انتظار</span>
+          {% elif t.status == "IN_PROGRESS" %}<span class="badge badge-blue">تنفيذ</span>
+          {% elif t.status == "COMPLETED" %}<span class="tag-yes">مكتمل</span>
+          {% elif t.status == "CANCELLED" %}<span class="tag-no">ملغى</span>
+          {% endif %}
+        </td>
+        <td style="color:var(--muted);font-size:.74rem">{{ t.created_at|date:"d/m H:i" }}</td>
+        <td>
+          {% if t.status == "COMPLETED" %}
+            {% for r in t.receipts.all %}
+            <a href="{% url 'frontend:vip:receipt_print' r.id %}" target="_blank" class="btn btn-o btn-sm">طباعة</a>
+            {% empty %}
+            <a href="{% url 'frontend:vip:generate_receipt' %}?ticket_id={{ t.id }}" class="btn btn-o btn-sm">وصل</a>
+            {% endfor %}
+          {% else %}—{% endif %}
+        </td>
+        <td>{% include "frontend/partials/ticket_row_actions.html" with t=t return_qs=return_qs %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "frontend/partials/pagination.html" with page_obj=recent_page query_string=query_string %}
+{% else %}
+<div class="history-empty">لا معاملات مطابقة للتصفية</div>
+{% endif %}

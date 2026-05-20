@@ -45,7 +45,10 @@
               <td>{{ b.booking_date|date:"d/m" }} - {{ b.booking_time|time:"H:i" }}</td>
               <td><span class="badge b-run">قيد التنفيذ</span></td>
               <td><span class="price-tag">{{ b.final_price }} {{ sys.currency }}</span></td>
-              <td><a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">فتح</a></td>
+              <td>
+                <a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">فتح</a>
+                {% if can_edit_vip %}<a href="{% url 'frontend:vip:edit_vip_booking' b.id %}" class="btn btn-o btn-sm">تعديل</a>{% endif %}
+              </td>
             </tr>
             {% endfor %}
             
@@ -55,17 +58,23 @@
               <td>{{ b.booking_date|date:"d/m" }} - {{ b.booking_time|time:"H:i" }}</td>
               <td><span class="badge b-done">{{ b.get_booking_type_display }}</span></td>
               <td><span class="price-tag">{{ b.final_price }} {{ sys.currency }}</span></td>
-              <td><a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">فتح</a></td>
+              <td>
+                <a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">فتح</a>
+                {% if can_edit_vip %}<a href="{% url 'frontend:vip:edit_vip_booking' b.id %}" class="btn btn-o btn-sm">تعديل</a>{% endif %}
+              </td>
             </tr>
             {% endfor %}
-
+            
             {% for b in pending %}
             <tr>
               <td><b>{{ b.customer.name }}</b></td>
               <td>{{ b.booking_date|date:"d/m" }} - {{ b.booking_time|time:"H:i" }}</td>
               <td><span class="badge b-wait">انتظار التأكيد</span></td>
               <td><span class="price-tag">{{ b.final_price }} {{ sys.currency }}</span></td>
-              <td><a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">فتح</a></td>
+              <td>
+                <a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">فتح</a>
+                {% if can_edit_vip %}<a href="{% url 'frontend:vip:edit_vip_booking' b.id %}" class="btn btn-o btn-sm">تعديل</a>{% endif %}
+              </td>
             </tr>
             {% endfor %}
             
@@ -101,7 +110,17 @@
               <td>{{ b.customer.name }}</td>
               <td class="muted">{{ b.booking_date|date:"d/m/Y" }}</td>
               <td><b>{{ b.final_price }}</b></td>
-              <td><a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">عرض</a></td>
+              <td style="white-space:nowrap">
+                <a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">عرض</a>
+                {% if is_admin %}
+                <a href="{% url 'frontend:vip:edit_vip_booking' b.id %}" class="btn btn-o btn-sm">تعديل</a>
+                <form method="post" action="{% url 'frontend:vip:vip_booking_detail' b.id %}" style="display:inline" onsubmit="return confirm('حذف الحجز؟')">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete">
+                  <button type="submit" class="btn btn-d btn-sm">حذف</button>
+                </form>
+                {% endif %}
+              </td>
             </tr>
             {% empty %}
             <tr><td colspan="4" class="empty">لا توجد سجلات سابقة.</td></tr>

@@ -74,7 +74,7 @@
     {% if tickets_page.object_list %}
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>#</th><th>الحلاق</th><th>الزبون</th><th>الوصف</th><th>الحالة</th><th>الدفع</th><th>المبلغ</th><th>العمولة</th><th>أُنشئت</th><th>اكتملت</th></tr></thead>
+        <thead><tr><th>#</th><th>الحلاق</th><th>الزبون</th><th>الوصف</th><th>الحالة</th><th>الدفع</th><th>المبلغ</th><th>العمولة</th><th>أُنشئت</th><th>اكتملت</th><th>إجراءات</th></tr></thead>
         <tbody>
           {% for t in tickets_page %}
           <tr>
@@ -93,6 +93,7 @@
             <td style="color:var(--green);font-weight:700">{% if t.barber_commission_total > 0 %}{{ t.barber_commission_total|floatformat:0 }} {{ sys.currency|default:"د" }}{% else %}—{% endif %}</td>
             <td style="font-size:.74rem;color:var(--muted)">{{ t.created_at|date:"Y/m/d H:i" }}</td>
             <td style="font-size:.74rem;color:var(--muted)">{% if t.completed_at %}{{ t.completed_at|date:"Y/m/d H:i" }}{% else %}—{% endif %}</td>
+            <td>{% include "frontend/partials/ticket_row_actions.html" with t=t ret_barber=request.GET.barber ret_from=request.GET.from ret_to=request.GET.to ret_page=request.GET.page %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -104,4 +105,5 @@
     {% endif %}
   </div>
 </div>
+{% include "frontend/partials/ticket_edit_modal.html" with active_barbers=active_barbers ret_barber=request.GET.barber ret_from=request.GET.from ret_to=request.GET.to ret_page=request.GET.page %}
 {% endblock %}

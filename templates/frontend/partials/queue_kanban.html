@@ -1,0 +1,95 @@
+<div class="kanban kanban-modal">
+  <section class="kanban-col wait">
+    <div class="kanban-col-hd">
+      <span class="kanban-col-title">في الانتظار</span>
+      <span class="kanban-count">{{ waiting|length }}</span>
+    </div>
+    <div class="kanban-body">
+      {% for t in waiting %}
+      <article class="q-card" data-ticket-id="{{ t.id }}">
+        <div class="q-card-top">
+          <div class="nm">{{ t.customer.name }}</div>
+          <span class="badge badge-yellow">انتظار</span>
+        </div>
+        <div class="meta"><strong>{{ t.barber.display_name }}</strong>{% if t.description %} · {{ t.description }}{% endif %}</div>
+        <div class="tags">
+          {% if t.payment_method == "CASH" %}<span class="badge badge-green">نقدي</span>{% else %}<span class="badge badge-blue">بطاقة</span>{% endif %}
+          {% if t.total > 0 %}<span class="badge" style="font-weight:800">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د.ل" }}</span>{% else %}<span class="badge badge-yellow">بدون سعر</span>{% endif %}
+        </div>
+        <div class="q-actions">
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_status"><input type="hidden" name="ticket_id" value="{{ t.id }}"><input type="hidden" name="status" value="IN_PROGRESS">
+            <button class="btn btn-p btn-sm" type="submit">بدء الخدمة</button>
+          </form>
+          <form method="post" onsubmit="return swalConfirm(this,'إلغاء','إلغاء الحجز؟','warning')">{% csrf_token %}<input type="hidden" name="action" value="update_status"><input type="hidden" name="ticket_id" value="{{ t.id }}"><input type="hidden" name="status" value="CANCELLED">
+            <button class="btn btn-d btn-sm" type="submit">إلغاء</button>
+          </form>
+        </div>
+        {% include "frontend/partials/ticket_row_actions.html" with t=t return_qs=return_qs %}
+        <form method="post" class="edit-price-row">{% csrf_token %}<input type="hidden" name="action" value="edit_price"><input type="hidden" name="ticket_id" value="{{ t.id }}">
+          <input type="number" name="amount" placeholder="السعر" step="1" min="0" value="{% if t.total > 0 %}{{ t.total|floatformat:0 }}{% endif %}" required>
+          <button class="btn btn-o btn-sm" type="submit">تعديل السعر</button>
+        </form>
+      </article>
+      {% empty %}
+      <div class="kanban-empty">لا أحد في الانتظار</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="kanban-col run">
+    <div class="kanban-col-hd">
+      <span class="kanban-col-title">قيد التنفيذ</span>
+      <span class="kanban-count">{{ in_progress|length }}</span>
+    </div>
+    <div class="kanban-body">
+      {% for t in in_progress %}
+      <article class="q-card">
+        <div class="q-card-top">
+          <div class="nm">{{ t.customer.name }}</div>
+          <span class="badge badge-blue">تنفيذ</span>
+        </div>
+        <div class="meta"><strong>{{ t.barber.display_name }}</strong>{% if t.description %} · {{ t.description }}{% endif %}</div>
+        <div class="tags">
+          {% if t.payment_method == "CASH" %}<span class="badge badge-green">نقدي</span>{% else %}<span class="badge badge-blue">بطاقة</span>{% endif %}
+          {% if t.total > 0 %}<span class="badge" style="font-weight:800">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د.ل" }}</span>{% else %}<span class="badge badge-yellow">حدّد السعر</span>{% endif %}
+        </div>
+        {% if t.total > 0 and t.barber_commission_total > 0 %}
+        <div class="comm-info">عمولة: {{ t.barber_commission_total|floatformat:0 }} {{ sys.currency|default:"د.ل" }}</div>
+        {% endif %}
+        <form method="post" class="pay-row" onsubmit="return validatePayment(this)" data-comm-pct="{{ t.barber.default_commission_pct }}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="complete_with_payment">
+          <input type="hidden" name="ticket_id" value="{{ t.id }}">
+          <select name="method" required>
+            <option value="CASH" {% if t.payment_method == "CASH" %}selected{% endif %}>نقدي</option>
+            <option value="CARD" {% if t.payment_method == "CARD" %}selected{% endif %}>بطاقة</option>
+          </select>
+          <input type="number" name="amount" placeholder="المبلغ" step="1" min="1" value="{% if t.total > 0 %}{{ t.total|floatformat:0 }}{% endif %}" required oninput="calcCommPreview(this)">
+          <span class="live-comm"></span>
+          <button class="btn btn-g btn-sm" type="submit">إنهاء ودفع</button>
+        </form>
+        <form method="post" class="edit-price-row">{% csrf_token %}<input type="hidden" name="action" value="edit_price"><input type="hidden" name="ticket_id" value="{{ t.id }}">
+          <input type="number" name="amount" step="1" min="0" value="{% if t.total > 0 %}{{ t.total|floatformat:0 }}{% endif %}" required>
+          <button class="btn btn-o btn-sm" type="submit">تعديل</button>
+        </form>
+        <div class="reassign-row">
+          <form method="post" style="display:contents" onsubmit="return swalConfirm(this,'نقل','نقل لحلاق آخر؟','question')">{% csrf_token %}<input type="hidden" name="action" value="reassign_barber"><input type="hidden" name="ticket_id" value="{{ t.id }}">
+            <span class="ras-label">نقل:</span>
+            <select name="new_barber_id" required>
+              <option value="">—</option>
+              {% for bp in active_barbers %}{% if bp.pk != t.barber.pk %}<option value="{{ bp.pk }}">{{ bp.display_name }}</option>{% endif %}{% endfor %}
+            </select>
+            <button class="btn btn-p btn-sm" type="submit">نقل</button>
+          </form>
+          <form method="post" style="margin-right:auto" onsubmit="return swalConfirm(this,'إلغاء','إلغاء؟','warning')">{% csrf_token %}<input type="hidden" name="action" value="update_status"><input type="hidden" name="ticket_id" value="{{ t.id }}"><input type="hidden" name="status" value="CANCELLED">
+            <button class="btn btn-d btn-sm" type="submit">إلغاء</button>
+          </form>
+        </div>
+        {% include "frontend/partials/ticket_row_actions.html" with t=t return_qs=return_qs %}
+      </article>
+      {% empty %}
+      <div class="kanban-empty">لا عمل جارٍ</div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
