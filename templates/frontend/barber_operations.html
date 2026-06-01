@@ -1,0 +1,193 @@
+{% extends "frontend/base.html" %}
+{% block title %}عمليات {{ barber.display_name }} — {{ sys.business_name }}{% endblock %}
+{% block header_title %}عمليات الحلاق{% endblock %}
+{% block header_subtitle %}{{ barber.display_name }} · عمولة {{ barber.default_commission_pct|floatformat:0 }}%{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center">
+  <a href="{% url 'frontend:barbers_list' %}?period={{ filter_period }}{% if filter_from %}&from={{ filter_from|date:'Y-m-d' }}{% endif %}{% if filter_to %}&to={{ filter_to|date:'Y-m-d' }}{% endif %}" class="btn btn-o btn-sm">← كل الحلاقين</a>
+  <a href="{% url 'frontend:queue' %}" class="btn btn-o btn-sm">نقطة البيع</a>
+</div>
+
+<div class="summary-grid" style="margin-bottom:18px">
+  <div class="kpi-card">
+    <div class="kpi-data">
+      <div class="kv">{{ summary.completed }}</div>
+      <div class="kl">عمليات مكتملة</div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:4px">
+        واصلات: <b>{{ summary.pos_completed }}</b> · VIP: <b>{{ summary.vip_completed }}</b>
+      </div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-data">
+      <div class="kv">{{ summary.revenue|floatformat:0 }} <small>{{ sys.currency }}</small></div>
+      <div class="kl">إجمالي الإيراد</div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:4px">
+        POS: <b>{{ summary.pos_revenue|floatformat:0 }}</b> · VIP: <b>{{ summary.vip_revenue|floatformat:0 }}</b>
+      </div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-data">
+      <div class="kv" style="color:var(--warning)">{{ summary.commission|floatformat:0 }} <small>{{ sys.currency }}</small></div>
+      <div class="kl">عمولة / مستحق الحلاق</div>
+    </div>
+  </div>
+</div>
+
+<form method="get" class="filter-bar card" style="padding:14px 16px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:end">
+  <div class="field">
+    <label>الفترة</label>
+    <select name="period" class="field-input" id="opsPeriod">
+      <option value="today" {% if filter_period == "today" %}selected{% endif %}>اليوم</option>
+      <option value="month" {% if filter_period == "month" %}selected{% endif %}>هذا الشهر</option>
+      <option value="all" {% if filter_period == "all" %}selected{% endif %}>الكل</option>
+      <option value="custom" {% if filter_period == "custom" %}selected{% endif %}>مخصص</option>
+    </select>
+  </div>
+  <div class="field period-custom" style="{% if filter_period != 'custom' %}display:none{% endif %}">
+    <label>من</label>
+    <input type="date" name="from" value="{% if filter_from %}{{ filter_from|date:'Y-m-d' }}{% endif %}" class="field-input">
+  </div>
+  <div class="field period-custom" style="{% if filter_period != 'custom' %}display:none{% endif %}">
+    <label>إلى</label>
+    <input type="date" name="to" value="{% if filter_to %}{{ filter_to|date:'Y-m-d' }}{% endif %}" class="field-input">
+  </div>
+  <div class="field">
+    <label>الحالة</label>
+    <select name="status" class="field-input">
+      <option value="COMPLETED" {% if filter_status == "COMPLETED" %}selected{% endif %}>مكتمل</option>
+      <option value="ALL" {% if filter_status == "ALL" %}selected{% endif %}>الكل</option>
+      <option value="CANCELLED" {% if filter_status == "CANCELLED" %}selected{% endif %}>ملغى</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-p btn-sm">تصفية</button>
+</form>
+
+<div class="card-accent">
+  <div class="card-accent-inner">
+    <div class="section-title">
+      واصلات نقطة البيع (POS)
+      <span class="badge b-wait">{% if tickets_page %}{{ tickets_page.paginator.count }}{% else %}0{% endif %}</span>
+    </div>
+    {% if tickets_page.object_list %}
+    <div class="tbl-wrap" style="margin-top:12px">
+      <table>
+        <thead>
+          <tr>
+            <th>رقم الوصل</th>
+            <th>الخدمة</th>
+            <th>المبلغ</th>
+            <th>عمولة</th>
+            <th>الدفع</th>
+            <th>التاريخ</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tickets_page %}
+          <tr>
+            <td style="font-weight:800">{% if t.shift_sequence %}#{{ t.shift_sequence }}{% else %}—{% endif %}</td>
+            <td>
+              {% with items=t.items.all %}
+              {% if items %}
+              {% for item in items %}{{ item.service.name }}{% if not forloop.last %} + {% endif %}{% endfor %}
+              {% elif t.service %}{{ t.service.name }}
+              {% else %}{{ t.description|default:"—" }}{% endif %}
+              {% endwith %}
+            </td>
+            <td>{% if t.total > 0 %}{{ t.total|floatformat:0 }} {{ sys.currency }}{% else %}—{% endif %}</td>
+            <td style="color:var(--success);font-weight:700">{% if t.barber_commission_total > 0 %}{{ t.barber_commission_total|floatformat:0 }}{% else %}—{% endif %}</td>
+            <td>{% if t.payment_method == "CASH" %}نقدي{% else %}بطاقة{% endif %}</td>
+            <td style="font-size:.76rem;color:var(--muted);white-space:nowrap">{{ t.completed_at|default:t.created_at|date:"d/m/Y H:i" }}</td>
+            <td>
+              {% if t.receipts.first %}
+              <a href="{% url 'frontend:vip:receipt_print' t.receipts.first.id %}" target="_blank" class="btn btn-o btn-sm">طباعة</a>
+              {% endif %}
+              {% include "frontend/partials/ticket_row_actions.html" with t=t return_qs=query_string %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "frontend/partials/pagination.html" with page_obj=tickets_page query_string=query_string %}
+    {% else %}
+    <div class="empty" style="padding:24px;text-align:center;color:var(--muted)">لا توجد واصلات POS في هذه الفترة.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card-accent" style="margin-top:18px">
+  <div class="card-accent-inner">
+    <div class="section-title">
+      حجوزات VIP
+      <span class="badge b-done">{% if vip_page %}{{ vip_page.paginator.count }}{% else %}0{% endif %}</span>
+    </div>
+    {% if vip_rows %}
+    <div class="tbl-wrap" style="margin-top:12px">
+      <table>
+        <thead>
+          <tr>
+            <!-- <th>العميل</th> -->
+            <th>النوع</th>
+            <th>التاريخ</th>
+            <th>الحالة</th>
+            <th>حصة الحلاق</th>
+            <th>مستحق</th>
+            <th>الدفع</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in vip_rows %}
+          {% with b=row.booking %}
+          <tr>
+            <td style="font-weight:700">{{ b.customer.name }}</td>
+            <td>{{ b.get_booking_type_display }}</td>
+            <td style="font-size:.76rem;color:var(--muted);white-space:nowrap">{{ b.booking_date|date:"d/m/Y" }} {{ b.booking_time|time:"H:i" }}</td>
+            <td>
+              {% if b.status == "pending" %}<span class="badge b-wait">قيد الانتظار</span>
+              {% elif b.status == "confirmed" %}<span class="badge b-wait">مؤكد</span>
+              {% elif b.status == "in_progress" %}<span class="badge b-run">تنفيذ</span>
+              {% elif b.status == "completed" %}<span class="badge b-done">مكتمل</span>
+              {% elif b.status == "cancelled" %}<span class="badge b-cancel">ملغي</span>
+              {% else %}{{ b.get_status_display }}{% endif %}
+            </td>
+            <td>{% if row.share > 0 %}{{ row.share|floatformat:0 }} {{ sys.currency }}{% else %}—{% endif %}</td>
+            <td style="color:var(--success);font-weight:700">{% if row.commission > 0 %}{{ row.commission|floatformat:0 }}{% else %}—{% endif %}</td>
+            <td>{% if b.payment_method == "CASH" %}نقدي{% elif b.payment_method == "CARD" %}بطاقة{% else %}—{% endif %}</td>
+            <td>
+              <a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">تفاصيل</a>
+              {% if b.receipts.first %}
+              <a href="{% url 'frontend:vip:receipt_print' b.receipts.first.id %}" target="_blank" class="btn btn-o btn-sm">طباعة</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "frontend/partials/pagination.html" with page_obj=vip_page query_string=vip_query_string page_param="vpage" %}
+    {% else %}
+    <div class="empty" style="padding:24px;text-align:center;color:var(--muted)">لا توجد حجوزات VIP مرتبطة بهذا الحلاق في هذه الفترة.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% include "frontend/partials/ticket_edit_modal.html" with active_barbers=active_barbers pos_services=pos_services return_qs=query_string %}
+
+<script>
+(function () {
+  var sel = document.getElementById('opsPeriod');
+  if (!sel) return;
+  sel.addEventListener('change', function () {
+    document.querySelectorAll('.period-custom').forEach(function (el) {
+      el.style.display = sel.value === 'custom' ? '' : 'none';
+    });
+  });
+})();
+</script>
+{% endblock %}

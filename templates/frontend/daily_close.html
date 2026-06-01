@@ -1,0 +1,105 @@
+{% extends "frontend/base.html" %}
+{% block title %}إغلاق الحساب اليومي — {{ sys.business_name }}{% endblock %}
+{% block header_title %}إغلاق الحساب اليومي{% endblock %}
+{% block header_subtitle %}حساب أرباح كل حلاق وإغلاق اليوم{% endblock %}
+
+{% block content %}
+<div class="filter-bar card" style="padding:16px 18px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:end">
+  <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end">
+    <div class="field">
+      <label>تاريخ الإغلاق</label>
+      <input type="date" name="date" value="{{ close_date|date:'Y-m-d' }}" class="field-input">
+    </div>
+    <button type="submit" class="btn btn-p">عرض</button>
+  </form>
+  {% if is_admin %}
+  <form method="post" style="margin-right:auto">
+    {% csrf_token %}
+    <input type="hidden" name="close_date" value="{{ close_date|date:'Y-m-d' }}">
+    <input type="hidden" name="action" value="close_all">
+    <button type="submit" class="btn btn-o" onclick="return confirm('إغلاق حساب جميع الحلاقين لهذا اليوم؟')">إغلاق الكل (مدير)</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="summary-grid" style="margin-bottom:18px">
+  <div class="kpi-card">
+    <div class="kpi-data">
+      <div class="kv">{{ totals.revenue|floatformat:0 }} <small>{{ sys.currency }}</small></div>
+      <div class="kl">إجمالي الإيراد (اليوم)</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-data">
+      <div class="kv" style="color:var(--warning)">{{ totals.commission|floatformat:0 }} <small>{{ sys.currency }}</small></div>
+      <div class="kl">إجمالي عمولات الحلاقين</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-data">
+      <div class="kv">{{ totals.tickets }}</div>
+      <div class="kl">عدد الواصلات المكتملة</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-data">
+      <div class="kv">{{ totals.closed }} / {{ summaries|length }}</div>
+      <div class="kl">حلاقون أُغلق حسابهم</div>
+    </div>
+  </div>
+</div>
+
+<div class="card-accent">
+  <div class="card-accent-inner">
+    <div class="section-title">تفاصيل الحلاقين — {{ close_date|date:"d/m/Y" }}</div>
+    <div class="tbl-wrap" style="margin-top:12px">
+      <table>
+        <thead>
+          <tr>
+            <th>الحلاق</th>
+            <th>واصلات</th>
+            <th>الإيراد</th>
+            <th>العمولة</th>
+            <th>الحالة</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in summaries %}
+          <tr>
+            <td><a href="{% url 'frontend:barber_operations' s.barber.id %}?period=custom&from={{ close_date|date:'Y-m-d' }}&to={{ close_date|date:'Y-m-d' }}"><b>{{ s.barber.display_name }}</b></a></td>
+            <td>{{ s.ticket_count }}</td>
+            <td>{{ s.total_revenue|floatformat:0 }} {{ sys.currency }}</td>
+            <td>{{ s.total_commission|floatformat:0 }} {{ sys.currency }}</td>
+            <td>
+              {% if s.is_closed %}
+              <span class="badge badge-green">مُغلق</span>
+              {% else %}
+              <span class="badge badge-yellow">مفتوح</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if not s.is_closed and s.ticket_count > 0 %}
+              <form method="post" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="close_date" value="{{ close_date|date:'Y-m-d' }}">
+                <input type="hidden" name="action" value="close_one">
+                <input type="hidden" name="barber_id" value="{{ s.barber.id }}">
+                <button type="submit" class="btn btn-p btn-sm">إغلاق الحساب</button>
+              </form>
+              {% elif s.is_closed %}
+              <span class="muted" style="font-size:.75rem">{{ s.close_record.closed_at|date:"H:i" }}</span>
+              {% else %}
+              <span class="muted" style="font-size:.75rem">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="muted" style="text-align:center;padding:24px">لا حلاقين</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

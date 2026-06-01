@@ -30,11 +30,11 @@
       </div>
       <div class="field">
         <label>من تاريخ</label>
-        <input type="date" name="from" value="{{ request.GET.from }}" class="field-input">
+        <input type="date" name="from" value="{% if filter_from %}{{ filter_from|date:'Y-m-d' }}{% endif %}" class="field-input">
       </div>
       <div class="field">
         <label>إلى تاريخ</label>
-        <input type="date" name="to" value="{{ request.GET.to }}" class="field-input">
+        <input type="date" name="to" value="{% if filter_to %}{{ filter_to|date:'Y-m-d' }}{% endif %}" class="field-input">
       </div>
       <button class="btn btn-p" type="submit">بحث</button>
       <a href="{% url 'frontend:barber_log' %}" class="btn btn-o">إعادة التعيين</a>
@@ -45,10 +45,10 @@
 {% if barber_stats %}
 <div class="summary-grid">
   {% for bs in barber_stats %}
-  <div class="dark-card log-sum-card">
+  <a href="{% url 'frontend:barber_operations' bs.barber_id %}" class="dark-card log-sum-card" style="text-decoration:none;color:inherit;display:flex;gap:12px">
     <div class="ava">{{ bs.initial_letter }}</div>
     <div style="flex:1;min-width:0">
-      <div class="nm">{{ bs.display_name }}</div>
+      <div class="nm">{{ bs.display_name }} <span style="font-size:.65rem;color:var(--primary)">عرض العمليات →</span></div>
       <div class="stat-line">
         <span>التذاكر <b>{{ bs.total_tickets }}</b></span>
         <span>مكتمل <b>{{ bs.completed_tickets }}</b></span>
@@ -59,7 +59,7 @@
         <span>العمولة <b>{{ bs.total_commission|default_if_none:0|floatformat:0 }} {{ sys.currency|default:"د" }}</b></span>
       </div>
     </div>
-  </div>
+  </a>
   {% endfor %}
 </div>
 {% endif %}

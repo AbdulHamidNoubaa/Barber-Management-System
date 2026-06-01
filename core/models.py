@@ -51,12 +51,37 @@ class Customer(TimestampedModel):
         return self.name
 
 
+class ServiceCategory(TimestampedModel):
+    """تصنيف الخدمات (شعر، وجه، صبغة، …)."""
+
+    name = models.CharField(max_length=80)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        verbose_name = "تصنيف خدمة"
+        verbose_name_plural = "تصنيفات الخدمات"
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Service(TimestampedModel):
-    name = models.CharField(max_length=120, unique=True)
+    name = models.CharField(max_length=120)
+    category = models.ForeignKey(
+        "core.ServiceCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="services",
+    )
     base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     is_active = models.BooleanField(default=True)
 
     def __str__(self) -> str:
+        if self.category_id:
+            return f"{self.category.name} — {self.name}"
         return self.name
 
 
@@ -124,9 +149,13 @@ class Shift(TimestampedModel):
         blank=True,
         related_name="assigned_shifts",
     )
+    last_ticket_sequence = models.PositiveIntegerField(
+        default=0,
+        help_text="آخر رقم تسلسلي للوصل ضمن هذا الشفت",
+    )
 
     def can_close(self, user) -> bool:
-        if user.is_superuser or user.role == "ADMIN":
+        if user.is_superuser or getattr(user, "role", None) in ("ADMIN", "CASHIER"):
             return True
         return self.assigned_cashiers.filter(pk=user.pk).exists()
 
@@ -168,6 +197,19 @@ class Ticket(TimestampedModel):
     customer = models.ForeignKey("core.Customer", on_delete=models.PROTECT, related_name="tickets")
     barber = models.ForeignKey("accounts.BarberProfile", on_delete=models.PROTECT, related_name="tickets")
     shift = models.ForeignKey("core.Shift", on_delete=models.PROTECT, related_name="tickets")
+    service = models.ForeignKey(
+        "core.Service",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tickets",
+    )
+    shift_sequence = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="رقم تسلسلي للوصل ضمن الشفت (يُطبع على الوصل بدل اسم الزبون)",
+    )
 
     status = models.CharField(max_length=20, choices=TicketStatus.choices, default=TicketStatus.WAITING, db_index=True)
     queue_position = models.PositiveIntegerField(default=0, db_index=True)
@@ -200,10 +242,22 @@ class Ticket(TimestampedModel):
         ]
         constraints = [
             models.CheckConstraint(check=Q(total__gte=0), name="ticket_total_gte_0"),
+            models.UniqueConstraint(
+                fields=["shift", "shift_sequence"],
+                condition=Q(shift_sequence__isnull=False),
+                name="ticket_unique_shift_sequence",
+            ),
         ]
 
     def __str__(self) -> str:
-        return f"Ticket #{self.id} - {self.customer} ({self.get_status_display()})"
+        seq = f"#{self.shift_sequence}" if self.shift_sequence else f"#{self.pk}"
+        return f"وصل {seq} - {self.customer} ({self.get_status_display()})"
+
+    @property
+    def receipt_sequence_label(self) -> str:
+        if self.shift_sequence:
+            return str(self.shift_sequence)
+        return str(self.pk)
 
     def clean(self) -> None:
         super().clean()
@@ -426,6 +480,7 @@ class TreasuryEntry(TimestampedModel):
 
 class VIPBookingType(models.TextChoices):
     """أنواع حجوزات VIP"""
+    VIP = "VIP", "VIP"
     WEDDING = "WEDDING", "عرس"
     EVENT = "EVENT", "حفل"
     GROUP = "GROUP", "مجموعة"
@@ -557,9 +612,11 @@ class Receipt(TimestampedModel):
         related_name="receipts"
     )
     
-    # البيانات الأساسية
-    customer_name = models.CharField(max_length=120)
-    customer_phone = models.CharField(max_length=30, blank=True)
+    # البيانات الأساسية (للوصلات العادية يُستخدم رقم الشفت التسلسلي بدل اسم الزبون)
+    customer_name = models.CharField(max_length=120, blank=True, default="")
+    customer_phone = models.CharField(max_length=30, blank=True, default="")
+    shift_sequence_number = models.PositiveIntegerField(null=True, blank=True, db_index=True)
+    barber_name = models.CharField(max_length=120, blank=True, default="")
     
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     payment_method = models.CharField(
@@ -607,26 +664,82 @@ class Receipt(TimestampedModel):
         return f"R-{datetime.now().strftime('%Y%m%d')}-{next_num:05d}"
 
 
-def get_or_create_open_shift(name: str = "") -> Shift:
-    """Get an open shift or create a new one if none exists.
-    
-    Uses select_for_update to prevent race conditions in concurrent requests.
-    
-    Args:
-        name: Optional name for the new shift if it needs to be created
-        
-    Returns:
-        Shift: An open (not closed) shift
-    """
-    # Try to get existing open shift first
-    shift = (
-        Shift.objects.select_for_update()
-        .filter(is_closed=False, ended_at__isnull=True)
-        .order_by("-started_at")
-        .first()
+class BarberDailyClose(TimestampedModel):
+    """إغلاق حساب يومي لحلاق واحد."""
+
+    barber = models.ForeignKey(
+        "accounts.BarberProfile",
+        on_delete=models.PROTECT,
+        related_name="daily_closes",
     )
-    if shift:
-        return shift
-    
-    # Create new shift if none exists
-    return Shift.objects.create(name=name)
+    close_date = models.DateField(db_index=True)
+    shift = models.ForeignKey(
+        "core.Shift",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="barber_daily_closes",
+    )
+    total_revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_commission = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    ticket_count = models.PositiveIntegerField(default=0)
+    closed_at = models.DateTimeField(default=timezone.now)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="barber_daily_closes",
+    )
+    note = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-close_date", "-closed_at"]
+        unique_together = [("barber", "close_date")]
+        verbose_name = "إغلاق يومي للحلاق"
+        verbose_name_plural = "إغلاقات يومية للحلاقين"
+
+    def __str__(self) -> str:
+        return f"{self.barber} — {self.close_date}"
+
+
+class VIPBarberPayout(TimestampedModel):
+    """توزيع مبلغ حجز VIP على الحلاقين بعد إتمام الخدمة."""
+
+    vip_booking = models.ForeignKey(
+        "core.VIPBooking",
+        on_delete=models.CASCADE,
+        related_name="barber_payouts",
+    )
+    barber = models.ForeignKey(
+        "accounts.BarberProfile",
+        on_delete=models.PROTECT,
+        related_name="vip_payouts",
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    note = models.CharField(max_length=255, blank=True, default="")
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="recorded_vip_payouts",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.barber} — {self.amount}"
+
+
+@transaction.atomic
+def allocate_shift_sequence(shift: Shift) -> int:
+    """رقم تسلسلي جديد ضمن الشفت."""
+    locked = Shift.objects.select_for_update().get(pk=shift.pk)
+    locked.last_ticket_sequence += 1
+    locked.save(update_fields=["last_ticket_sequence", "updated_at"])
+    return locked.last_ticket_sequence
+
+
+def get_or_create_open_shift(name: str = "") -> Shift:
+    """الشفت المفتوح الحالي — لا يُنشئ شفتاً تلقائياً."""
+    from core.shift_utils import require_open_shift
+
+    return require_open_shift()

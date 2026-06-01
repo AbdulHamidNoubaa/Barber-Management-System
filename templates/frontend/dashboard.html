@@ -5,355 +5,486 @@
 
 {% block extra_head %}
 <style>
-  /* ── Dashboard-specific overrides ── */
+  .dash-v3 { display: flex; flex-direction: column; gap: 1.1rem; }
 
-  /* Shift Status Banner */
-  .shift-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-    padding: .85rem 1.25rem;
+  /* شريط إجراءات سريعة */
+  .dash-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: .65rem;
+  }
+  .dash-action {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .85rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    margin-bottom: 1.25rem;
+    text-decoration: none;
+    color: inherit;
+    font-weight: 800;
+    font-size: .8rem;
+    transition: .15s;
+    box-shadow: var(--shadow-xs);
+  }
+  .dash-action:hover {
+    border-color: var(--primary);
+    background: #eff6ff;
+    color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+  .dash-action.primary {
+    background: var(--grad-primary);
+    color: #fff;
+    border-color: transparent;
+  }
+  .dash-action.primary:hover { filter: brightness(1.06); color: #fff; }
+  .dash-action-ico {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.2);
+    flex-shrink: 0;
+  }
+  .dash-action:not(.primary) .dash-action-ico {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  /* الشفت */
+  .shift-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius-lg);
     font-size: .83rem;
   }
-
   .shift-banner.active {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border: 1px solid #bfdbfe;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 55%, #f0f9ff 100%);
+    border: 1px solid #93c5fd;
   }
-
   .shift-banner.idle {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
     border: 1px solid #fcd34d;
   }
-
   .shift-status-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-left: .35rem;
+    width: 9px; height: 9px; border-radius: 50%; display: inline-block;
   }
-
-  .shift-status-dot.on  { background: var(--success); box-shadow: 0 0 0 3px rgba(5,150,105,.2); animation: pulse 2s infinite; }
+  .shift-status-dot.on {
+    background: var(--success);
+    box-shadow: 0 0 0 4px rgba(5,150,105,.18);
+    animation: dashPulse 2s infinite;
+  }
   .shift-status-dot.off { background: var(--warning); }
-
-  @keyframes pulse {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(5,150,105,.2); }
-    50%       { box-shadow: 0 0 0 6px rgba(5,150,105,.05); }
+  @keyframes dashPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(5,150,105,.18); }
+    50% { box-shadow: 0 0 0 7px rgba(5,150,105,.06); }
   }
-
-  .shift-info { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
-
-  .shift-name {
-    font-weight: 800;
-    font-size: .88rem;
-    color: var(--primary);
+  .shift-info { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+  .shift-name { font-weight: 900; font-size: .95rem; color: var(--primary); }
+  .shift-meta { color: var(--muted); font-size: .78rem; }
+  .shift-inline-stats {
+    display: flex; gap: 1rem; flex-wrap: wrap;
+    padding: .35rem .75rem;
+    background: rgba(255,255,255,.55);
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,.05);
   }
+  .shift-inline-stats span { font-size: .72rem; color: var(--muted); }
+  .shift-inline-stats b { color: var(--text); margin-inline-start: .2rem; }
 
-  .shift-meta { color: var(--muted); }
-
-  .shift-stats {
-    display: flex;
-    gap: 1.25rem;
-    flex-wrap: wrap;
-  }
-
-  .shift-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: .1rem;
-  }
-
-  .shift-stat-val {
-    font-weight: 800;
-    font-size: .92rem;
-    color: var(--text);
-  }
-
-  .shift-stat-lbl {
-    font-size: .66rem;
-    color: var(--muted);
-    font-weight: 600;
-  }
-
-  .shift-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-
-  /* Open-shift form */
-  .open-shift-form {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    flex-wrap: wrap;
-  }
-
-  .open-shift-form input[type="text"] {
-    width: 180px;
-    padding: .4rem .7rem;
-    font-size: .8rem;
-  }
-
-  /* ── Dashboard grid: KPI top, kanban below ── */
-  .dash-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  /* Kanban board fixed height to avoid full-page scroll */
-  .queue-board {
+  /* KPI مضغوطة */
+  .dash-kpi-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+    grid-template-columns: repeat(6, 1fr);
+    gap: .65rem;
   }
-
-  .qb-col {
-    height: 340px;  /* fixed so content scrolls inside column */
-  }
-
-  /* Platform stats bar */
-  .stats-bar {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    padding: .65rem 1.1rem;
+  .dash-kpi {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    font-size: .78rem;
-    color: var(--muted);
+    padding: .85rem .9rem;
+    position: relative;
+    overflow: hidden;
   }
-
-  .stats-bar strong { color: var(--text); font-weight: 800; }
-
-  .stats-bar-item { display: flex; align-items: center; gap: .35rem; }
-
-  .stats-bar-divider { width: 1px; height: 16px; background: var(--border); }
-
-  /* Quick action buttons */
-  .quick-actions {
-    display: flex;
-    gap: .5rem;
-    flex-wrap: wrap;
-    margin-bottom: 1.25rem;
+  .dash-kpi::before {
+    content: ""; position: absolute; top: 0; right: 0; left: 0; height: 3px;
+    background: var(--grad-primary);
   }
+  .dash-kpi.accent-green::before { background: var(--grad-success); }
+  .dash-kpi.accent-amber::before { background: linear-gradient(90deg,#d97706,#f59e0b); }
+  .dash-kpi-lbl { font-size: .68rem; font-weight: 700; color: var(--muted); margin-bottom: .25rem; }
+  .dash-kpi-val { font-size: 1.15rem; font-weight: 900; line-height: 1.2; color: var(--text); }
+  .dash-kpi-val small { font-size: .65rem; font-weight: 700; color: var(--muted); }
+  .dash-kpi-sub { font-size: .62rem; color: var(--muted-light); margin-top: .2rem; }
 
-  @media (max-width: 900px) {
-    .queue-board { grid-template-columns: 1fr; }
-    .qb-col { height: auto; max-height: 280px; }
+  /* المحتوى الرئيسي */
+  .dash-main {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 1rem;
+    align-items: start;
   }
+  .dash-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+  }
+  .dash-panel-hd {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .5rem; flex-wrap: wrap;
+    padding: .85rem 1.1rem;
+    border-bottom: 1px solid var(--border-light);
+    background: #f8fafc;
+  }
+  .dash-panel-title {
+    font-weight: 900; font-size: .88rem; color: var(--text);
+    display: flex; align-items: center; gap: .4rem;
+  }
+  .dash-panel-bd { padding: 0; }
 
+  .sales-tbl { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  .sales-tbl th {
+    text-align: right; padding: .55rem .85rem;
+    font-size: .65rem; font-weight: 800; color: var(--muted);
+    background: #f1f5f9; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .sales-tbl td {
+    padding: .6rem .85rem;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+  }
+  .sales-tbl tr:last-child td { border-bottom: none; }
+  .sales-tbl tr:hover td { background: #f8fafc; }
+  .sale-seq { font-weight: 900; color: var(--primary); font-size: .82rem; }
+  .sale-cust { font-weight: 800; }
+  .sale-meta { font-size: .7rem; color: var(--muted); margin-top: .15rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sale-amt { font-weight: 800; white-space: nowrap; }
+  .sale-comm { color: var(--success); font-weight: 700; font-size: .74rem; }
+  .pay-pill {
+    font-size: .62rem; font-weight: 800; padding: .15rem .45rem;
+    border-radius: 999px; display: inline-block;
+  }
+  .pay-pill.cash { background: #ecfdf5; color: #047857; }
+  .pay-pill.card { background: #eff6ff; color: #1d4ed8; }
+
+  .barber-rank { padding: .65rem 1rem; border-bottom: 1px solid var(--border-light); }
+  .barber-rank:last-child { border-bottom: none; }
+  .barber-rank-top {
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    margin-bottom: .35rem;
+  }
+  .barber-rank-name { display: flex; align-items: center; gap: .45rem; font-weight: 800; font-size: .8rem; }
+  .barber-rank-ava {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--primary-light); color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .72rem; font-weight: 900;
+  }
+  .barber-rank-rev { font-weight: 900; color: var(--primary); font-size: .85rem; }
+  .barber-rank-bar {
+    height: 5px; background: #e2e8f0; border-radius: 999px; overflow: hidden;
+  }
+  .barber-rank-fill {
+    height: 100%; background: var(--grad-primary); border-radius: 999px;
+  }
+  .barber-rank-meta { font-size: .65rem; color: var(--muted); margin-top: .25rem; }
+
+  .dash-empty {
+    text-align: center; padding: 2.5rem 1rem;
+    color: var(--muted); font-size: .82rem;
+  }
+  .dash-empty strong { display: block; color: var(--text); margin-bottom: .35rem; }
+
+  .dash-links { padding: .75rem 1rem; display: flex; flex-direction: column; gap: .4rem; }
+  .dash-link {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .55rem .7rem; border-radius: var(--radius-sm);
+    text-decoration: none; color: var(--text-2); font-size: .76rem; font-weight: 700;
+    border: 1px solid var(--border-light);
+    transition: .12s;
+  }
+  .dash-link:hover { background: #eff6ff; border-color: #bfdbfe; color: var(--primary); }
+
+  .platform-bar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem;
+    padding: .75rem 1.1rem;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    font-size: .74rem; color: var(--muted);
+  }
+  .platform-bar strong { color: var(--text); font-weight: 800; }
+
+  @media (max-width: 1100px) {
+    .dash-kpi-row { grid-template-columns: repeat(3, 1fr); }
+    .dash-main { grid-template-columns: 1fr; }
+  }
   @media (max-width: 640px) {
-    .shift-banner { flex-direction: column; align-items: flex-start; }
-    .shift-stats  { gap: .75rem; }
+    .dash-kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .shift-banner { flex-direction: column; align-items: stretch; }
+    .sales-tbl { font-size: .72rem; }
+    .sales-tbl .hide-sm { display: none; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dash-layout">
+<div class="dash-v3">
 
-  <!-- ① Quick Actions -->
-  <div class="quick-actions">
-    <a href="{% url 'frontend:queue' %}" class="btn btn-p">الانتقال إلى الطابور</a>
-    <a href="{% url 'frontend:reports' %}" class="btn btn-o">التقارير</a>
+  <div class="dash-actions">
+    <a href="{% url 'frontend:queue' %}" class="dash-action primary">
+      <span class="dash-action-ico">{% include "frontend/partials/icon.html" with name="queue" size=18 %}</span>
+      <span>نقطة البيع · إصدار وصل</span>
+    </a>
+    <a href="{% url 'frontend:transactions_log' %}" class="dash-action">
+      <span class="dash-action-ico">{% include "frontend/partials/icon.html" with name="chart" size=18 %}</span>
+      <span>سجل المعاملات</span>
+    </a>
+    <a href="{% url 'frontend:barbers_list' %}" class="dash-action">
+      <span class="dash-action-ico">{% include "frontend/partials/icon.html" with name="users" size=18 %}</span>
+      <span>الحلاقين</span>
+    </a>
     {% if request.user.is_superuser or request.user.role == "ADMIN" %}
-    <a href="{% url 'frontend:settings' %}" class="btn btn-o">الإعدادات</a>
+    <a href="{% url 'frontend:settings' %}" class="dash-action">
+      <span class="dash-action-ico" style="font-size:1rem">⚙</span>
+      <span>الإعدادات</span>
+    </a>
     {% endif %}
   </div>
 
-  <!-- ② Shift Status Banner -->
   {% if current_shift %}
   <div class="shift-banner active">
     <div class="shift-info">
       <span class="shift-status-dot on"></span>
-      <span class="shift-name">{{ current_shift.name|default:"شفت نشط" }}</span>
-      <span class="shift-meta">· بدأ في {{ current_shift.started_at|date:"d/m/Y H:i" }}</span>
+      <div>
+        <div class="shift-name">{{ current_shift.name }}</div>
+        <div class="shift-meta">بدأ {{ current_shift.started_at|date:"d/m/Y" }} الساعة {{ current_shift.started_at|time:"H:i" }}</div>
+      </div>
     </div>
-
-    <div class="shift-stats">
-      <div class="shift-stat">
-        <span class="shift-stat-val">{{ revenue|floatformat:0 }}</span>
-        <span class="shift-stat-lbl">إيراد ({{ sys.currency|default:"د" }})</span>
-      </div>
-      <div class="shift-stats-divider" style="width:1px;background:rgba(0,0,0,.08);align-self:stretch;"></div>
-      <div class="shift-stat">
-        <span class="shift-stat-val" style="color:var(--success)">{{ net_profit|floatformat:0 }}</span>
-        <span class="shift-stat-lbl">صافي ({{ sys.currency|default:"د" }})</span>
-      </div>
-      <div class="shift-stats-divider" style="width:1px;background:rgba(0,0,0,.08);align-self:stretch;"></div>
-      <div class="shift-stat">
-        <span class="shift-stat-val">{{ customers_count }}</span>
-        <span class="shift-stat-lbl">زبائن</span>
-      </div>
-      {% if commission %}
-      <div class="shift-stats-divider" style="width:1px;background:rgba(0,0,0,.08);align-self:stretch;"></div>
-      <div class="shift-stat">
-        <span class="shift-stat-val">{{ commission|floatformat:0 }}</span>
-        <span class="shift-stat-lbl">عمولات ({{ sys.currency|default:"د" }})</span>
-      </div>
-      {% endif %}
-    </div>
-
-    <div class="shift-actions">
-      {% if can_close %}
-      <form method="post" onsubmit="return confirm('إغلاق الشفت الحالي؟')">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="close_shift">
-        <button type="submit" class="btn btn-d btn-sm">إغلاق الشفت</button>
-      </form>
-      {% endif %}
+    <div class="shift-inline-stats">
+      <span>واصلات <b>{{ shift_receipts_count }}</b></span>
+      <span>إيراد <b>{{ revenue|floatformat:0 }}</b> {{ sys.currency|default:"د" }}</span>
+      <span>صافي <b style="color:var(--success)">{{ net_profit|floatformat:0 }}</b></span>
     </div>
   </div>
-
   {% else %}
   <div class="shift-banner idle">
     <div class="shift-info">
       <span class="shift-status-dot off"></span>
-      <span class="shift-name" style="color:var(--warning)">لا يوجد شفت مفتوح</span>
-      <span class="shift-meta">· سيتم فتح شفت جديد يدوياً أو تلقائياً عند بدء التشغيل</span>
+      <div>
+        <div class="shift-name" style="color:var(--warning)">لا يوجد شفت مفتوح</div>
+        <div class="shift-meta">افتح شفتاً لبدء تسجيل الواصلات والمبيعات</div>
+      </div>
     </div>
-    {% if request.user.is_superuser or request.user.role == "ADMIN" %}
-    <div class="shift-actions">
-      <form method="post" class="open-shift-form">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="open_shift">
-        <input type="text" name="shift_name" placeholder="اسم الشفت (اختياري)" maxlength="120">
-        <button type="submit" class="btn btn-p btn-sm">فتح شفت</button>
-      </form>
-    </div>
-    {% endif %}
+    <form method="post" style="margin:0">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="open_shift">
+      <button type="submit" class="btn btn-p">فتح {{ next_shift_label }}</button>
+    </form>
   </div>
   {% endif %}
 
-  <!-- ③ KPI Cards -->
-  <div class="kpi-grid">
-
-    <div class="kpi-card">
-      <div class="kpi-icon blue">{% include "frontend/partials/icon.html" with name="currency" size=20 %}</div>
-      <div class="kpi-label">إيراد الشفت</div>
-      <div class="kpi-value">{{ revenue|floatformat:0 }} <small>{{ sys.currency|default:"د" }}</small></div>
-      <div class="kpi-sub">المبالغ المكتملة فقط</div>
+  <div class="dash-kpi-row">
+    <div class="dash-kpi">
+      <div class="dash-kpi-lbl">إيراد الشفت</div>
+      <div class="dash-kpi-val">{{ revenue|floatformat:0 }} <small>{{ sys.currency|default:"د" }}</small></div>
+      <div class="dash-kpi-sub">مبيعات مكتملة</div>
     </div>
-
-    <div class="kpi-card kpi-green">
-      <div class="kpi-icon green">{% include "frontend/partials/icon.html" with name="chart" size=20 %}</div>
-      <div class="kpi-label">صافي المحل</div>
-      <div class="kpi-value" style="color:var(--success)">{{ net_profit|floatformat:0 }} <small>{{ sys.currency|default:"د" }}</small></div>
-      <div class="kpi-sub">بعد خصم العمولات</div>
+    <div class="dash-kpi accent-green">
+      <div class="dash-kpi-lbl">صافي المحل</div>
+      <div class="dash-kpi-val" style="color:var(--success)">{{ net_profit|floatformat:0 }} <small>{{ sys.currency|default:"د" }}</small></div>
+      <div class="dash-kpi-sub">بعد العمولات</div>
     </div>
-
-    <div class="kpi-card">
-      <div class="kpi-icon blue">{% include "frontend/partials/icon.html" with name="users" size=20 %}</div>
-      <div class="kpi-label">زبائن الشفت</div>
-      <div class="kpi-value">{{ customers_count }}</div>
-      <div class="kpi-sub">إجمالي المعاملات المكتملة</div>
+    <div class="dash-kpi">
+      <div class="dash-kpi-lbl">عدد الواصلات</div>
+      <div class="dash-kpi-val">{{ shift_receipts_count }}</div>
+      <div class="dash-kpi-sub">{% if current_shift %}في {{ current_shift.name }}{% else %}—{% endif %}</div>
     </div>
-
-    <div class="kpi-card kpi-warn">
-      <div class="kpi-icon yellow">{% include "frontend/partials/icon.html" with name="currency" size=20 %}</div>
-      <div class="kpi-label">توزيع الدفع</div>
-      <div class="kpi-value" style="font-size:1.1rem;line-height:1.5">
-        <span style="color:var(--success)">{{ cash_total|floatformat:0 }}</span> <small>نقدي</small>
-        &nbsp;/&nbsp;
-        <span style="color:var(--info)">{{ card_total|floatformat:0 }}</span> <small>بطاقة</small>
-      </div>
-      <div class="kpi-sub">{{ sys.currency|default:"د" }}</div>
+    <div class="dash-kpi">
+      <div class="dash-kpi-lbl">متوسط الوصل</div>
+      <div class="dash-kpi-val">{{ avg_ticket|floatformat:0 }} <small>{{ sys.currency|default:"د" }}</small></div>
+      <div class="dash-kpi-sub">لكل معاملة</div>
     </div>
-
+    <div class="dash-kpi accent-amber">
+      <div class="dash-kpi-lbl">نقدي</div>
+      <div class="dash-kpi-val" style="color:var(--success)">{{ cash_total|floatformat:0 }}</div>
+      <div class="dash-kpi-sub">{{ sys.currency|default:"د" }}</div>
+    </div>
+    <div class="dash-kpi">
+      <div class="dash-kpi-lbl">بطاقة</div>
+      <div class="dash-kpi-val" style="color:var(--info)">{{ card_total|floatformat:0 }}</div>
+      <div class="dash-kpi-sub">{{ sys.currency|default:"د" }}</div>
+    </div>
   </div>
 
-  <!-- ④ Queue Kanban Board -->
-  <div class="queue-board">
-
-    <!-- Waiting -->
-    <div class="qb-col">
-      <div class="qb-head wait">
-        <span>في الانتظار</span>
-        <span class="qb-count">{{ waiting|length }}</span>
-      </div>
-      <div class="qb-body">
-        {% for t in waiting %}
-        <div class="dt-card">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">
-            <span class="nm">{{ t.customer.name }}</span>
-            <span class="badge-d w">انتظار</span>
-          </div>
-          <div class="meta">
-            {{ t.barber.display_name }}
-            {% if t.total and t.total > 0 %}· <span class="price-tag">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}</span>{% else %}· لم يُحدد السعر{% endif %}
-          </div>
+  <div class="dash-main">
+    <div class="dash-panel">
+      <div class="dash-panel-hd">
+        <div class="dash-panel-title">
+          آخر الواصلات
+          {% if current_shift %}<span class="badge b-done" style="font-size:.65rem">{{ shift_receipts_count }}</span>{% endif %}
         </div>
-        {% empty %}
-        <div class="dt-empty">لا توجد تذاكر انتظار</div>
-        {% endfor %}
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+          {% if current_shift and can_close %}
+          <form method="post" onsubmit="return confirm('إغلاق الشفت؟')">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="close_shift">
+            <button type="submit" class="btn btn-d btn-sm">إغلاق الشفت</button>
+          </form>
+          {% endif %}
+          <a href="{% url 'frontend:transactions_log' %}" class="btn btn-o btn-sm">عرض الكل</a>
+        </div>
+      </div>
+      <div class="dash-panel-bd">
+        {% if recent_sales %}
+        <div class="tbl-wrap">
+          <table class="sales-tbl">
+            <thead>
+              <tr>
+                <th>الوصل</th>
+                <th>الزبون</th>
+                <th>الحلاق</th>
+                <th class="hide-sm">الخدمة</th>
+                <th>المبلغ</th>
+                <th class="hide-sm">عمولة</th>
+                <th>الوقت</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in recent_sales %}
+              <tr>
+                <td>
+                  {% if t.shift_sequence %}
+                  <span class="sale-seq">#{{ t.shift_sequence }}</span>
+                  {% else %}<span style="color:var(--muted)">—</span>{% endif %}
+                </td>
+                <td><span class="sale-cust">{{ t.customer.name }}</span></td>
+                <td style="font-weight:700;font-size:.76rem">{{ t.barber.display_name }}</td>
+                <td class="hide-sm">
+                  <div class="sale-meta">
+                    {% with items=t.items.all %}
+                    {% if items %}
+                    {% for item in items %}{{ item.service.name }}{% if not forloop.last %} + {% endif %}{% endfor %}
+                    {% elif t.service %}{{ t.service.name }}
+                    {% else %}{{ t.description|default:"—" }}{% endif %}
+                    {% endwith %}
+                  </div>
+                </td>
+                <td class="sale-amt">
+                  {{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}
+                  <span class="pay-pill {% if t.payment_method == 'CARD' %}card{% else %}cash{% endif %}">
+                    {% if t.payment_method == 'CARD' %}بطاقة{% else %}نقدي{% endif %}
+                  </span>
+                </td>
+                <td class="hide-sm sale-comm">
+                  {% if t.barber_commission_total > 0 %}{{ t.barber_commission_total|floatformat:0 }}{% else %}—{% endif %}
+                </td>
+                <td style="font-size:.72rem;color:var(--muted);white-space:nowrap">
+                  {{ t.completed_at|default:t.created_at|date:"H:i" }}
+                </td>
+                <td>
+                  {% if t.receipts.first %}
+                  <a href="{% url 'frontend:vip:receipt_print' t.receipts.first.id %}" target="_blank" class="btn btn-o btn-sm">طباعة</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="dash-empty">
+          {% if current_shift %}
+          <strong>لا واصلات بعد في هذا الشفت</strong>
+          انتقل إلى نقطة البيع لإصدار أول وصل
+          <div style="margin-top:1rem">
+            <a href="{% url 'frontend:queue' %}" class="btn btn-p btn-sm">فتح نقطة البيع</a>
+          </div>
+          {% else %}
+          <strong>افتح شفتاً لبدء العمل</strong>
+          بعد الفتح ستظهر الواصلات هنا فور إصدارها
+          {% endif %}
+        </div>
+        {% endif %}
       </div>
     </div>
 
-    <!-- In Progress -->
-    <div class="qb-col">
-      <div class="qb-head run">
-        <span>قيد التنفيذ</span>
-        <span class="qb-count">{{ in_progress|length }}</span>
-      </div>
-      <div class="qb-body">
-        {% for t in in_progress %}
-        <div class="dt-card">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">
-            <span class="nm">{{ t.customer.name }}</span>
-            <span class="badge-d r">تنفيذ</span>
+    <aside style="display:flex;flex-direction:column;gap:1rem">
+      <div class="dash-panel">
+        <div class="dash-panel-hd">
+          <div class="dash-panel-title">أداء الحلاقين · الشفت</div>
+        </div>
+        <div class="dash-panel-bd">
+          {% if barber_breakdown %}
+            {% with top_rev=barber_breakdown.0.revenue %}
+            {% for row in barber_breakdown %}
+            <div class="barber-rank">
+              <div class="barber-rank-top">
+                <div class="barber-rank-name">
+                  <span class="barber-rank-ava">{{ row.barber.initial_letter }}</span>
+                  {{ row.barber.display_name }}
+                </div>
+                <span class="barber-rank-rev">{{ row.revenue|floatformat:0 }} {{ sys.currency|default:"د" }}</span>
+              </div>
+              {% if top_rev > 0 %}
+              <div class="barber-rank-bar">
+                <div class="barber-rank-fill" style="width:{% widthratio row.revenue top_rev 100 %}%"></div>
+              </div>
+              {% endif %}
+              <div class="barber-rank-meta">{{ row.tickets }} وصل · عمولة {{ row.commission|floatformat:0 }} {{ sys.currency|default:"د" }}</div>
+            </div>
+            {% endfor %}
+            {% endwith %}
+          {% else %}
+          <div class="dash-empty" style="padding:1.5rem 1rem">
+            <span>لا بيانات بعد</span>
           </div>
-          <div class="meta">
-            {{ t.barber.display_name }}
-            {% if t.total and t.total > 0 %}· <span class="price-tag">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}</span>{% else %}· لم يُحدد السعر{% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="dash-panel">
+        <div class="dash-panel-hd">
+          <div class="dash-panel-title">اختصارات</div>
+        </div>
+        <div class="dash-links">
+          <a href="{% url 'frontend:vip:vip_bookings_list' %}" class="dash-link">حجوزات VIP <span>←</span></a>
+          <a href="{% url 'frontend:daily_close' %}" class="dash-link">الإغلاق اليومي <span>←</span></a>
+          <a href="{% url 'frontend:treasury' %}" class="dash-link">الخزنة <span>←</span></a>
+          <a href="{% url 'frontend:vip:receipts_list' %}" class="dash-link">وصلات مطبوعة <span>←</span></a>
+        </div>
+      </div>
+
+      <div class="dash-panel" style="padding:.85rem 1rem">
+        <div style="font-size:.72rem;font-weight:800;color:var(--muted);margin-bottom:.5rem">ملخص الشفت</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;font-size:.76rem">
+          <div style="padding:.45rem .55rem;background:var(--bg);border-radius:8px">
+            زبائن <b style="display:block;font-size:1rem;color:var(--text)">{{ customers_count }}</b>
+          </div>
+          <div style="padding:.45rem .55rem;background:var(--bg);border-radius:8px">
+            عمولات <b style="display:block;font-size:1rem;color:var(--warning)">{{ commission|floatformat:0 }}</b>
+          </div>
+          <div style="padding:.45rem .55rem;background:var(--bg);border-radius:8px">
+            حلاقون نشطون <b style="display:block;font-size:1rem">{{ barbers_active }}</b>
+          </div>
+          <div style="padding:.45rem .55rem;background:var(--bg);border-radius:8px">
+            بطاقة/نقدي <b style="display:block;font-size:.85rem">{{ card_total|floatformat:0 }}/{{ cash_total|floatformat:0 }}</b>
           </div>
         </div>
-        {% empty %}
-        <div class="dt-empty">لا يوجد عمل جارٍ</div>
-        {% endfor %}
       </div>
-    </div>
-
-    <!-- Completed -->
-    <div class="qb-col">
-      <div class="qb-head done">
-        <span>آخر المكتملة</span>
-        <span class="qb-count">{{ completed|length }}</span>
-      </div>
-      <div class="qb-body">
-        {% for t in completed %}
-        <div class="dt-card">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">
-            <span class="nm">{{ t.customer.name }}</span>
-            <span class="badge-d g">مكتمل</span>
-          </div>
-          <div class="meta">
-            {{ t.barber.display_name }}
-            · <span class="price-tag">{{ t.total|floatformat:0 }} {{ sys.currency|default:"د" }}</span>
-            {% if t.completed_at %}· {{ t.completed_at|date:"H:i" }}{% endif %}
-          </div>
-        </div>
-        {% empty %}
-        <div class="dt-empty">لا توجد معاملات مكتملة بعد</div>
-        {% endfor %}
-      </div>
-    </div>
-
+    </aside>
   </div>
 
-  <!-- ⑤ Platform Stats Bar -->
-  <div class="stats-bar">
-    <div class="stats-bar-item">إجمالي المنصة</div>
-    <div class="stats-bar-divider"></div>
-    <div class="stats-bar-item">إيراد كلي: <strong>{{ all_revenue|floatformat:0 }} {{ sys.currency|default:"د" }}</strong></div>
-    <div class="stats-bar-divider"></div>
-    <div class="stats-bar-item">زبائن: <strong>{{ all_customers }}</strong></div>
-    <div class="stats-bar-divider"></div>
-    <div class="stats-bar-item">حلاقون نشطون: <strong>{{ barbers_active }}</strong></div>
+  <div class="platform-bar">
+    <span style="font-weight:800;color:var(--text-2)">إجمالي المنصة</span>
+    <span>إيراد: <strong>{{ all_revenue|floatformat:0 }} {{ sys.currency|default:"د" }}</strong></span>
+    <span>صافي تراكمي: <strong>{{ all_net_profit|floatformat:0 }} {{ sys.currency|default:"د" }}</strong></span>
+    <span>زبائن: <strong>{{ all_customers }}</strong></span>
+    <span>نقدي/بطاقة: <strong>{{ all_cash|floatformat:0 }} / {{ all_card|floatformat:0 }}</strong></span>
   </div>
 
 </div>

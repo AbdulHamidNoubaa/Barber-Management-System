@@ -21,9 +21,11 @@ from barber_ms.pagination import (
     paginate_queryset,
     querystring_excluding_page,
 )
+from core.customer_utils import get_or_create_customer, resolve_customer_name
 from core.models import (
     VIPBooking,
     VIPBookingType,
+    VIPBarberPayout,
     Receipt,
     ReceiptType,
     TreasuryEntry,
@@ -88,10 +90,9 @@ def create_vip_booking(request):
         form = VIPBookingForm(request.POST)
         if form.is_valid():
             try:
-                # البحث أو إنشاء العميل
-                customer, _ = Customer.objects.get_or_create(
-                    name=form.cleaned_data['customer_name'],
-                    phone=form.cleaned_data['customer_phone'],
+                customer, _ = get_or_create_customer(
+                    name=form.cleaned_data.get("customer_name"),
+                    phone=form.cleaned_data.get("customer_phone"),
                 )
                 
                 # إنشاء الحجز
@@ -111,6 +112,9 @@ def create_vip_booking(request):
                     special_requests=form.cleaned_data['special_requests'],
                     created_by=request.user,
                 )
+                assigned = form.cleaned_data.get("assigned_barber_ids")
+                if assigned:
+                    booking.assigned_barbers.set(assigned)
                 
                 # إنشاء وصل للحجز
                 Receipt.objects.create(
@@ -175,13 +179,49 @@ def vip_booking_detail(request, booking_id):
             booking.payment_method = request.POST.get('payment_method', PaymentMethod.CASH)
             booking.save()
             messages.success(request, "تم تسجيل الدفع.")
-        
+
+        elif action == 'split_payouts' and _is_admin(request.user):
+            booking.barber_payouts.all().delete()
+            barber_ids = request.POST.getlist('payout_barber_id')
+            amounts = request.POST.getlist('payout_amount')
+            created = 0
+            for bid, amt in zip(barber_ids, amounts):
+                if not bid or not str(amt).strip():
+                    continue
+                try:
+                    amount = Decimal(str(amt).replace(',', '.'))
+                except Exception:
+                    continue
+                if amount <= 0:
+                    continue
+                bp = BarberProfile.objects.filter(pk=bid).first()
+                if bp:
+                    VIPBarberPayout.objects.create(
+                        vip_booking=booking,
+                        barber=bp,
+                        amount=amount,
+                        recorded_by=request.user,
+                    )
+                    created += 1
+            if created:
+                messages.success(request, f"تم توزيع المدفوعات على {created} حلاق/حلاقين.")
+            else:
+                messages.warning(request, "لم يُسجَّل أي توزيع — تحقق من المبالغ.")
+
         return redirect('frontend:vip:vip_booking_detail', booking_id=booking_id)
-    
+
     receipts = booking.receipts.all()
+    assigned = booking.assigned_barbers.filter(is_active=True)
+    payouts = booking.barber_payouts.select_related('barber').all()
+    payout_total = payouts.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    active_barbers = BarberProfile.objects.filter(is_active=True).order_by('name')
     context = {
         'booking': booking,
         'receipts': receipts,
+        'assigned_barbers': assigned,
+        'payouts': payouts,
+        'payout_total': payout_total,
+        'active_barbers': active_barbers,
         'is_admin': _is_admin(request.user),
         'can_edit_vip': _is_cashier_or_admin(request.user),
     }
@@ -201,8 +241,11 @@ def edit_vip_booking(request, booking_id):
         if form.is_valid():
             try:
                 customer = booking.customer
-                customer.name = form.cleaned_data["customer_name"]
-                customer.phone = form.cleaned_data["customer_phone"]
+                customer.name = resolve_customer_name(
+                    form.cleaned_data.get("customer_name"),
+                    customer_pk=customer.pk,
+                )
+                customer.phone = (form.cleaned_data.get("customer_phone") or "").strip()
                 customer.save(update_fields=["name", "phone", "updated_at"])
 
                 booking.booking_type = form.cleaned_data["booking_type"]
@@ -215,6 +258,9 @@ def edit_vip_booking(request, booking_id):
                 booking.description = form.cleaned_data.get("description") or ""
                 booking.special_requests = form.cleaned_data.get("special_requests") or ""
                 booking.save()
+                assigned = form.cleaned_data.get("assigned_barber_ids")
+                if assigned is not None:
+                    booking.assigned_barbers.set(assigned)
 
                 for receipt in booking.receipts.all():
                     receipt.amount = booking.final_price
@@ -251,6 +297,9 @@ def edit_vip_booking(request, booking_id):
                 "discount_pct": booking.discount_pct,
                 "description": booking.description,
                 "special_requests": booking.special_requests,
+                "assigned_barber_ids": list(
+                    booking.assigned_barbers.values_list("pk", flat=True)
+                ),
             }
         )
 
@@ -325,9 +374,11 @@ def receipt_print(request, receipt_id):
     receipt = get_object_or_404(Receipt, id=receipt_id)
     
     # يمكن إرجاع HTML للطباعة أو PDF
+    auto_print = request.GET.get('auto_print') in ('1', 'true', 'yes')
     context = {
         'receipt': receipt,
         'print_mode': True,
+        'auto_print': auto_print,
     }
     return render(request, 'frontend/receipt_print.html', context)
 

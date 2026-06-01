@@ -22,8 +22,8 @@ from core.models import (
     TicketStatus,
     TreasuryEntry,
     VIPBooking,
-    get_or_create_open_shift,
 )
+from core.shift_utils import get_open_shift
 
 
 def _role(user) -> str | None:
@@ -169,7 +169,9 @@ class TicketAdmin(RoleScopedAdmin):
     def save_model(self, request, obj: Ticket, form, change):
         if not change:
             if not obj.shift_id:
-                obj.shift = get_or_create_open_shift()
+                shift = get_open_shift()
+                if shift:
+                    obj.shift = shift
         super().save_model(request, obj, form, change)
 
     def save_related(self, request, form, formsets, change):

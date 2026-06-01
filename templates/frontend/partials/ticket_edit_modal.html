@@ -1,7 +1,7 @@
 <div id="ticketEditModal" class="ui-modal" role="dialog" aria-modal="true" hidden>
   <div class="ui-modal-box">
     <div class="ui-modal-hd">
-      <div><h3>تعديل المعاملة</h3><p>تعديل بيانات الزبون والحالة والمبلغ</p></div>
+      <div><h3>تعديل الوصل</h3><p>الحلاق · الخدمة · المبلغ</p></div>
       <button type="button" class="ui-modal-x" id="ticketEditClose" data-close-modal>✕</button>
     </div>
     <div class="ui-modal-bd">
@@ -16,14 +16,6 @@
         {% if ret_to %}<input type="hidden" name="_ret_to" value="{{ ret_to }}">{% endif %}
         {% if ret_page %}<input type="hidden" name="_ret_page" value="{{ ret_page }}">{% endif %}
         <div class="field" style="margin-bottom:.55rem">
-          <label class="pos-lbl">اسم الزبون</label>
-          <input type="text" name="customer_name" id="ticketEditName" class="field-input" required maxlength="120">
-        </div>
-        <div class="field" style="margin-bottom:.55rem">
-          <label class="pos-lbl">الجوال</label>
-          <input type="text" name="customer_phone" id="ticketEditPhone" class="field-input" maxlength="30">
-        </div>
-        <div class="field" style="margin-bottom:.55rem">
           <label class="pos-lbl">الحلاق</label>
           <select name="barber_id" id="ticketEditBarber" class="field-input" required>
             {% for bp in active_barbers %}
@@ -32,8 +24,13 @@
           </select>
         </div>
         <div class="field" style="margin-bottom:.55rem">
-          <label class="pos-lbl">ملاحظة</label>
-          <input type="text" name="description" id="ticketEditDesc" class="field-input" maxlength="255">
+          <label class="pos-lbl">الخدمة</label>
+          <select name="service_id" id="ticketEditService" class="field-input">
+            <option value="">—</option>
+            {% for svc in pos_services %}
+            <option value="{{ svc.pk }}">{{ svc.name }} — {{ svc.base_price|floatformat:0 }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.55rem">
           <div class="field">
@@ -51,8 +48,6 @@
         <div class="field" style="margin-bottom:.75rem">
           <label class="pos-lbl">الحالة</label>
           <select name="status" id="ticketEditStatus" class="field-input">
-            <option value="WAITING">انتظار</option>
-            <option value="IN_PROGRESS">قيد التنفيذ</option>
             <option value="COMPLETED">مكتمل</option>
             <option value="CANCELLED">ملغى</option>
           </select>
@@ -71,13 +66,11 @@
   if (!modal) return;
   function openEdit(btn) {
     document.getElementById('ticketEditId').value = btn.getAttribute('data-id') || '';
-    document.getElementById('ticketEditName').value = btn.getAttribute('data-name') || '';
-    document.getElementById('ticketEditPhone').value = btn.getAttribute('data-phone') || '';
     document.getElementById('ticketEditBarber').value = btn.getAttribute('data-barber') || '';
-    document.getElementById('ticketEditDesc').value = btn.getAttribute('data-desc') || '';
+    document.getElementById('ticketEditService').value = btn.getAttribute('data-service') || '';
     document.getElementById('ticketEditAmount').value = btn.getAttribute('data-amount') || '';
     document.getElementById('ticketEditPay').value = btn.getAttribute('data-pay') || 'CASH';
-    document.getElementById('ticketEditStatus').value = btn.getAttribute('data-status') || 'WAITING';
+    document.getElementById('ticketEditStatus').value = btn.getAttribute('data-status') || 'COMPLETED';
     document.querySelectorAll('.ui-modal.is-open').forEach(function (x) {
       if (x.id !== 'ticketEditModal') { x.classList.remove('is-open'); x.setAttribute('hidden', ''); }
     });

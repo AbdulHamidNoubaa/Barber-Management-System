@@ -31,13 +31,13 @@ def delete_ticket_record(ticket: Ticket) -> None:
 
 @transaction.atomic
 def apply_ticket_edit(ticket: Ticket, cleaned: dict) -> Ticket:
-    customer = ticket.customer
-    customer.name = cleaned["customer_name"]
-    customer.phone = cleaned.get("customer_phone") or ""
-    customer.save(update_fields=["name", "phone", "updated_at"])
-
     ticket.barber = cleaned["barber_id"]
-    ticket.description = cleaned.get("description") or ""
+    service = cleaned.get("service_id")
+    if service:
+        ticket.service = service
+        ticket.description = service.name
+        ticket.customer.name = service.name
+        ticket.customer.save(update_fields=["name", "updated_at"])
     ticket.payment_method = cleaned["payment_method"]
 
     new_status = cleaned["status"]
@@ -64,4 +64,20 @@ def apply_ticket_edit(ticket: Ticket, cleaned: dict) -> Ticket:
         ticket.barber_commission_total = Decimal("0")
 
     ticket.save()
+    for receipt in ticket.receipts.all():
+        from core.receipt_utils import create_receipt_for_ticket, ticket_items_description
+
+        receipt.amount = ticket.total
+        receipt.payment_method = ticket.payment_method
+        receipt.items_description = ticket_items_description(ticket)
+        receipt.barber_name = ticket.barber.display_name
+        receipt.save(
+            update_fields=[
+                "amount",
+                "payment_method",
+                "items_description",
+                "barber_name",
+                "updated_at",
+            ]
+        )
     return ticket

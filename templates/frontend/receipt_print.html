@@ -2,77 +2,104 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>وصل رقم {{ receipt.receipt_number }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <title>وصل {% if receipt.shift_sequence_number %}{{ receipt.shift_sequence_number }}{% else %}{{ receipt.receipt_number }}{% endif %}</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap">
   <style>
-    body { font-family: 'Cairo', sans-serif; margin: 0; padding: 20px; color: #000; }
-    .receipt-box { max-width: 400px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px; }
-    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px dashed #eee; padding-bottom: 10px; }
-    .header h1 { margin: 0; font-size: 1.5rem; }
-    .header p { margin: 5px 0; font-size: 0.9rem; color: #666; }
-    
-    .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
-    .info-label { font-weight: 700; }
-    
-    .items-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-    .items-table th { border-bottom: 2px solid #000; text-align: right; padding: 5px; }
-    .items-table td { padding: 8px 5px; border-bottom: 1px solid #eee; }
-    
-    .total-section { margin-top: 15px; border-top: 2px solid #000; padding-top: 10px; }
-    .total-row { display: flex; justify-content: space-between; font-weight: 800; font-size: 1.2rem; }
-    
-    .footer { text-align: center; margin-top: 30px; font-size: 0.8rem; border-top: 1px dashed #eee; padding-top: 10px; }
-    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Cairo', sans-serif;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #000;
+      background: #fff;
+      width: 80mm;
+      max-width: 80mm;
+      margin: 0 auto;
+      padding: 4mm 3mm;
+    }
+    .center { text-align: center; }
+    .bold { font-weight: 800; }
+    .sep { border-top: 1px dashed #000; margin: 3mm 0; }
+    .sep-thick { border-top: 2px solid #000; margin: 3mm 0; }
+    .row { display: flex; justify-content: space-between; gap: 2mm; margin: 1mm 0; font-size: 11px; }
+    .seq-box {
+      text-align: center;
+      padding: 3mm 0;
+      margin: 2mm 0;
+    }
+    .seq-num {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+    .seq-lbl { font-size: 10px; font-weight: 700; }
+    .items { font-size: 11px; margin: 2mm 0; white-space: pre-wrap; }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 800;
+      margin-top: 2mm;
+    }
+    .footer { text-align: center; font-size: 9px; margin-top: 4mm; }
+    .no-print { margin-top: 4mm; text-align: center; }
     @media print {
-      body { padding: 0; }
-      .receipt-box { border: none; width: 100%; max-width: 100%; }
-      .no-print { display: none; }
+      @page { size: 80mm auto; margin: 2mm; }
+      body { width: 76mm; padding: 0; }
+      .no-print { display: none !important; }
+    }
+    @media screen {
+      body { border: 1px solid #ccc; padding: 8mm; margin: 12px auto; box-shadow: 0 2px 12px rgba(0,0,0,.1); }
     }
   </style>
 </head>
-<body onload="window.print()">
-  <div class="receipt-box">
-    <div class="header">
-      <h1>{{ sys.business_name|default:"Barber Pro" }}</h1>
-      <p>{{ sys.business_address|default:"نظام إدارة صالون الحلاقة" }}</p>
-      <p>رقم الهاتف: {{ sys.business_phone|default:"—" }}</p>
-    </div>
+<body onload="{% if auto_print %}window.print(){% endif %}">
+  <div class="center bold" style="font-size:14px">{{ sys.business_name|default:"صالون الحلاقة" }}</div>
+  {% if sys.business_address %}<div class="center" style="font-size:9px;margin-top:1mm">{{ sys.business_address }}</div>{% endif %}
+  {% if sys.business_phone %}<div class="center" style="font-size:9px">هاتف: {{ sys.business_phone }}</div>{% endif %}
 
-    <div class="info-row">
-      <span class="info-label">رقم الوصل:</span>
-      <span>{{ receipt.receipt_number }}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">التاريخ:</span>
-      <span>{{ receipt.created_at|date:"d/m/Y H:i" }}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">العميل:</span>
-      <span>{{ receipt.customer_name }}</span>
-    </div>
-    
-    <div style="margin: 20px 0; font-weight: 700; border-bottom: 1px solid #eee; padding-bottom: 5px;">تفاصيل الخدمة:</div>
-    <p style="font-size: 0.9rem; line-height: 1.6;">{{ receipt.items_description|linebreaksbr }}</p>
+  <div class="sep-thick"></div>
 
-    <div class="total-section">
-      <div class="total-row">
-        <span>الإجمالي:</span>
-        <span>{{ receipt.amount }} {{ sys.currency|default:"د" }}</span>
-      </div>
-      <div class="info-row" style="margin-top: 5px;">
-        <span class="info-label">طريقة الدفع:</span>
-        <span>{{ receipt.get_payment_method_display }}</span>
-      </div>
+  <div class="seq-box">
+    <div class="seq-lbl">رقم الوصل (الشفت)</div>
+    <div class="seq-num">
+      {% if receipt.shift_sequence_number %}
+        {{ receipt.shift_sequence_number }}
+      {% elif receipt.ticket and receipt.ticket.shift_sequence %}
+        {{ receipt.ticket.shift_sequence }}
+      {% else %}
+        {{ receipt.receipt_number }}
+      {% endif %}
     </div>
+  </div>
 
-    <div class="footer">
-      <p>شكراً لزيارتكم!</p>
-      <p>صادر بواسطة: {{ receipt.issued_by.get_full_name|default:receipt.issued_by.username }}</p>
-      <div class="no-print" style="margin-top: 20px;">
-        <button onclick="window.print()" style="padding: 10px 20px; cursor: pointer;">إعادة الطباعة</button>
-      </div>
-    </div>
+  <div class="row"><span>رقم النظام:</span><span>{{ receipt.receipt_number }}</span></div>
+  <div class="row"><span>التاريخ:</span><span>{{ receipt.created_at|date:"d/m/Y H:i" }}</span></div>
+  {% if receipt.barber_name %}
+  <div class="row"><span>الحلاق:</span><span class="bold">{{ receipt.barber_name }}</span></div>
+  {% elif receipt.ticket %}
+  <div class="row"><span>الحلاق:</span><span class="bold">{{ receipt.ticket.barber.display_name }}</span></div>
+  {% endif %}
+  <div class="row"><span>الدفع:</span><span>{% if receipt.payment_method == "CASH" %}نقدي{% else %}بطاقة{% endif %}</span></div>
+
+  <div class="sep"></div>
+  <div class="bold" style="font-size:11px;margin-bottom:1mm">تفاصيل الخدمة</div>
+  <div class="items">{{ receipt.items_description|default:"—" }}</div>
+
+  <div class="sep-thick"></div>
+  <div class="total-row">
+    <span>الإجمالي</span>
+    <span>{{ receipt.amount|floatformat:0 }} {{ sys.currency|default:"د.ل" }}</span>
+  </div>
+
+  <div class="footer">
+    <div class="sep" style="margin:2mm 0"></div>
+    شكراً لزيارتكم
+  </div>
+
+  <div class="no-print">
+    <button type="button" onclick="window.print()" style="padding:8px 16px;font-family:inherit;cursor:pointer">إعادة الطباعة</button>
+    <button type="button" onclick="window.close()" style="padding:8px 16px;font-family:inherit;cursor:pointer;margin-right:6px">إغلاق</button>
   </div>
 </body>
 </html>

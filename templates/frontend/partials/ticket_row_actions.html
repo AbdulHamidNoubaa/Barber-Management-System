@@ -1,10 +1,8 @@
 <div class="tx-actions" style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center">
   <button type="button" class="btn btn-o btn-sm js-ticket-edit"
     data-id="{{ t.id }}"
-    data-name="{{ t.customer.name|escape }}"
-    data-phone="{{ t.customer.phone|default:''|escape }}"
     data-barber="{{ t.barber_id }}"
-    data-desc="{{ t.description|default:''|escape }}"
+    data-service="{{ t.service_id|default:'' }}"
     data-amount="{% if t.total > 0 %}{{ t.total|floatformat:0 }}{% endif %}"
     data-pay="{{ t.payment_method|default:'CASH' }}"
     data-status="{{ t.status }}">تعديل</button>

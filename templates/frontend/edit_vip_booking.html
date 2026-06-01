@@ -10,6 +10,7 @@
     <form method="post" class="vip-form">
       {% csrf_token %}
       <div class="grid-2">
+        <p class="muted" style="font-size:.8rem;grid-column:1/-1;margin:0">اترك الاسم فارغاً للاحتفاظ بالاسم التلقائي <strong>زبون #{{ booking.customer_id }}</strong>.</p>
         <div class="field"><label>{{ form.customer_name.label }}</label>{{ form.customer_name }}</div>
         <div class="field"><label>{{ form.customer_phone.label }}</label>{{ form.customer_phone }}</div>
       </div>
@@ -28,6 +29,7 @@
       </div>
       <div class="field"><label>{{ form.description.label }}</label>{{ form.description }}</div>
       <div class="field"><label>{{ form.special_requests.label }}</label>{{ form.special_requests }}</div>
+      <div class="field"><label>{{ form.assigned_barber_ids.label }}</label>{{ form.assigned_barber_ids }}</div>
       <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
         <button type="submit" class="btn btn-p" style="flex:1;min-width:140px;padding:12px">حفظ التعديلات</button>
         <a href="{% url 'frontend:vip:vip_booking_detail' booking.id %}" class="btn btn-o">إلغاء</a>

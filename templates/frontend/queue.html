@@ -83,6 +83,7 @@
   align-items: center;
   gap: .35rem;
   transition: .12s;
+  text-decoration: none;
 }
 .qv-btn:hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
 .qv-btn.primary { background: var(--grad-primary); color: #fff; border-color: transparent; }
@@ -103,6 +104,24 @@
 }
 .qv-shift .dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
 .qv-shift.off .dot { background: #f59e0b; }
+.shift-controls { flex-shrink: 0; }
+.shift-controls-active, .shift-controls-idle {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .45rem;
+  font-size: .72rem; font-weight: 700;
+}
+.shift-controls-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.shift-controls-dot.on { background: #22c55e; }
+.shift-controls-dot.off { background: #f59e0b; }
+.shift-controls-form { display: inline-flex; align-items: center; gap: .35rem; margin: 0; }
+.shift-name-select {
+  padding: .32rem .45rem; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: .7rem; max-width: 120px;
+}
+.pos-shift-warn {
+  margin-bottom: .5rem; padding: .55rem .75rem;
+  background: #fff8e1; border: 1px solid #fcd34d; border-radius: var(--radius-sm);
+  font-size: .74rem; font-weight: 700; color: #b45309;
+}
 
 /* المحتوى الرئيسي */
 .qv-main {
@@ -241,6 +260,42 @@
   margin-top: .25rem;
 }
 .pos-comm-preview.show { display: block; }
+.pos-selected-services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  min-height: 2rem;
+  padding: .4rem;
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: .35rem;
+}
+.pos-selected-services .empty-hint {
+  font-size: .7rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.pos-sel-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .25rem .5rem;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 800;
+}
+.pos-sel-tag button {
+  border: none;
+  background: transparent;
+  color: var(--danger);
+  font-weight: 900;
+  cursor: pointer;
+  padding: 0 .15rem;
+  line-height: 1;
+}
 .field-err-inline { color: var(--danger); font-size: .65rem; font-weight: 700; }
 
 /* معاينة الطابور */
@@ -485,33 +540,28 @@
     <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap">
       <span class="qv-toolbar-title">{% include "frontend/partials/icon.html" with name="queue" size=18 %} نقطة البيع</span>
       <div class="qv-metrics">
-        <span class="qm w">انتظار <b>{{ queue_stats.waiting }}</b></span>
-        <span class="qm r">تنفيذ <b>{{ queue_stats.in_progress }}</b></span>
-        <span class="qm d">مكتمل <b>{{ queue_stats.completed }}</b></span>
+        <span class="qm d">واصلات <b>{{ queue_stats.completed }}</b></span>
         <span class="qm">إيراد <b>{{ queue_stats.revenue|floatformat:0 }}</b></span>
       </div>
-      <span class="qv-shift {% if not current_shift %}off{% endif %}">
-        <span class="dot"></span>
-        {% if current_shift %}شفت {{ current_shift.name|default:"مفتوح" }}{% else %}لا شفت{% endif %}
-      </span>
     </div>
-    <div class="qv-actions">
-      <button type="button" class="qv-btn primary" data-open="modalQueue">
-        الطابور <span class="badge-count">{{ queue_stats.waiting|add:queue_stats.in_progress }}</span>
-      </button>
-      <button type="button" class="qv-btn" data-open="modalHistory">
-        السجل <span class="badge-count">{{ recent_page.paginator.count|default:0 }}</span>
-      </button>
+    <div class="qv-actions" style="align-items:center">
+      {% include "frontend/partials/shift_controls.html" with can_close_shift=can_close_shift %}
+      <a href="{% url 'frontend:transactions_log' %}{% if return_qs %}?{{ return_qs }}{% endif %}" class="qv-btn">
+        السجل <span class="badge-count">{{ history_count|default:0 }}</span>
+      </a>
       <button type="button" class="qv-btn" data-open="modalFilters">تصفية</button>
-      <button type="button" class="qv-btn" data-open="modalExtras">أسعار وخدمات</button>
+      <a href="{% url 'frontend:settings' %}#sec-services" class="qv-btn">إدارة الخدمات</a>
     </div>
   </header>
 
   <div class="qv-main">
     <section class="qv-pos" id="posPanel">
-      <div class="qv-pos-hd">تسجيل زبون — اختر الحلاق ثم الاسم · Enter للإرسال</div>
+      <div class="qv-pos-hd">إصدار وصل — اختر الحلاق والخدمات (يمكن أكثر من واحدة) · Enter للإرسال</div>
       <div class="qv-pos-bd">
-        <form method="post" novalidate id="addForm" autocomplete="off">
+        {% if not current_shift %}
+        <div class="pos-shift-warn">لا يمكن إصدار وصل بدون شفت مفتوح — اضغط «فتح {{ next_shift_label }}» أعلاه.</div>
+        {% endif %}
+        <form method="post" novalidate id="addForm" autocomplete="off"{% if not current_shift %} style="opacity:.55;pointer-events:none"{% endif %}>
           {% csrf_token %}
           <input type="hidden" name="action" value="create_ticket">
           <input type="hidden" name="_return_qs" value="{{ return_qs }}">
@@ -537,37 +587,38 @@
 
           <div class="pos-compact">
             <div class="full">
-              <label class="pos-lbl">اسم الزبون <span class="req">*</span></label>
-              {{ form.customer_name }}
-              <span class="field-err-inline" id="errName"></span>
+              <label class="pos-lbl">الخدمات المختارة <span class="req">*</span></label>
+              <div class="pos-selected-services" id="posSelectedServices">
+                <span class="empty-hint" id="posSelectedEmpty">اضغط على الخدمات أدناه لإضافتها</span>
+              </div>
+              <div id="posServiceIdsWrap"></div>
+              <span class="field-err-inline" id="errService"></span>
             </div>
             <div>
-              <label class="pos-lbl">الجوال</label>
-              {{ form.customer_phone }}
-            </div>
-            <div>
-              <label class="pos-lbl">المبلغ</label>
+              <label class="pos-lbl">الإجمالي</label>
               {{ form.initial_amount }}
               <div class="pos-comm-preview" id="posCommPreview"></div>
             </div>
-            <div class="full">
-              <label class="pos-lbl">ملاحظة / خدمة</label>
-              {{ form.description }}
-            </div>
-            <div class="pos-row-actions">
+            <div class="pos-row-actions full">
               <div class="pay-toggles" id="payToggles">
                 <button type="button" class="pay-tog is-on" data-pay="CASH">نقدي</button>
                 <button type="button" class="pay-tog" data-pay="CARD">بطاقة</button>
               </div>
               <button type="submit" class="btn-pos-submit" id="btnPosSubmit">
-                {% include "frontend/partials/icon.html" with name="check" size=18 %} إضافة للطابور
+                {% include "frontend/partials/icon.html" with name="check" size=18 %} إصدار وصل وطباعة
               </button>
               <button type="button" class="btn-pos-clear" id="btnPosClear">مسح</button>
             </div>
-            <div class="pos-tools full">
-              <button type="button" class="pos-tool-btn" data-open="modalExtras">أسعار سريعة وخدمات</button>
-              <button type="button" class="pos-tool-btn" data-open="modalQueue">إدارة الطابور ({{ queue_stats.waiting|add:queue_stats.in_progress }})</button>
+            {% if pos_services %}
+            <div class="full" style="margin-top:.35rem">
+              <p class="pos-lbl" style="margin-bottom:.3rem">اختر الخدمات (اضغط للإضافة/الإزالة)</p>
+              <div class="chip-panel" id="serviceQuickChips">
+                {% for svc in pos_services %}
+                <button type="button" class="chip service-quick" data-svc-id="{{ svc.id }}" data-price="{{ svc.base_price|floatformat:0 }}">{{ svc.name }} · {{ svc.base_price|floatformat:0 }}</button>
+                {% endfor %}
+              </div>
             </div>
+            {% endif %}
           </div>
         </form>
       </div>
@@ -575,28 +626,15 @@
 
     <aside class="qv-side">
       <div class="qv-preview">
-        <div class="qv-preview-hd wait-h">انتظار <b>{{ waiting|length }}</b></div>
+        <div class="qv-preview-hd run-h">آخر الواصلات</div>
         <div class="qv-preview-list">
-          {% for t in waiting|slice:":6" %}
-          <div class="qv-preview-item">
-            <div class="pi-name">{{ t.customer.name }}</div>
-            <div class="pi-meta"><span class="pi-barber">الحلاق: {{ t.barber.display_name }}</span>{% if t.total > 0 %} · {{ t.total|floatformat:0 }}{% endif %}</div>
+          {% for t in recent_completed %}
+          <div class="qv-preview-item" style="cursor:default">
+            <div class="pi-name">{% if t.shift_sequence %}#{{ t.shift_sequence }}{% else %}—{% endif %} · {% with items=t.items.all %}{% if items %}{% for item in items %}{{ item.service.name }}{% if not forloop.last %}+{% endif %}{% endfor %}{% elif t.service %}{{ t.service.name }}{% else %}{{ t.description }}{% endif %}{% endwith %}</div>
+            <div class="pi-meta"><span class="pi-barber">{{ t.barber.display_name }}</span> · {{ t.total|floatformat:0 }} {{ sys.currency|default:"د.ل" }}</div>
           </div>
           {% empty %}
-          <div class="qv-preview-empty">فارغ</div>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="qv-preview">
-        <div class="qv-preview-hd run-h">تنفيذ <b>{{ in_progress|length }}</b></div>
-        <div class="qv-preview-list">
-          {% for t in in_progress|slice:":6" %}
-          <div class="qv-preview-item">
-            <div class="pi-name">{{ t.customer.name }}</div>
-            <div class="pi-meta"><span class="pi-barber">الحلاق: {{ t.barber.display_name }}</span>{% if t.total > 0 %} · {{ t.total|floatformat:0 }}{% endif %}</div>
-          </div>
-          {% empty %}
-          <div class="qv-preview-empty">فارغ</div>
+          <div class="qv-preview-empty">لا واصلات بعد</div>
           {% endfor %}
         </div>
       </div>
@@ -604,43 +642,11 @@
   </div>
 </div>
 
-<!-- مودال: الطابور -->
-<div id="modalQueue" class="ui-modal" role="dialog" aria-modal="true" hidden>
-  <div class="ui-modal-box wide">
-    <div class="ui-modal-hd">
-      <div>
-        <h3>إدارة الطابور</h3>
-        <p>انتظار {{ waiting|length }} · تنفيذ {{ in_progress|length }}</p>
-      </div>
-      <button type="button" class="ui-modal-x" data-close-modal>✕</button>
-    </div>
-    <div class="ui-modal-bd">
-      {% include "frontend/partials/queue_kanban.html" %}
-    </div>
-  </div>
-</div>
-
-<!-- مودال: السجل -->
-<div id="modalHistory" class="ui-modal" role="dialog" aria-modal="true" hidden>
-  <div class="ui-modal-box wide">
-    <div class="ui-modal-hd">
-      <div>
-        <h3>سجل المعاملات</h3>
-        <p>{{ recent_page.paginator.count|default:0 }} نتيجة — يظهر اسم الحلاق مع كل معاملة</p>
-      </div>
-      <button type="button" class="ui-modal-x" data-close-modal>✕</button>
-    </div>
-    <div class="ui-modal-bd">
-      {% include "frontend/partials/queue_history_modal.html" %}
-    </div>
-  </div>
-</div>
-
 <!-- مودال: التصفية -->
 <div id="modalFilters" class="ui-modal" role="dialog" aria-modal="true" hidden>
   <div class="ui-modal-box">
     <div class="ui-modal-hd">
-      <div><h3>تصفية السجل</h3><p>تُطبَّق على سجل المعاملات والإحصائيات</p></div>
+      <div><h3>تصفية</h3><p>تُطبَّق على إحصائيات نقطة البيع — للسجل الكامل افتح «سجل المعاملات»</p></div>
       <button type="button" class="ui-modal-x" data-close-modal>✕</button>
     </div>
     <div class="ui-modal-bd">
@@ -708,38 +714,6 @@
   </div>
 </div>
 
-<!-- مودال: أسعار وخدمات -->
-<div id="modalExtras" class="ui-modal" role="dialog" aria-modal="true" hidden>
-  <div class="ui-modal-box">
-    <div class="ui-modal-hd">
-      <div><h3>أسعار سريعة وخدمات</h3><p>اضغط لملء الحقول في نموذج التسجيل</p></div>
-      <button type="button" class="ui-modal-x" data-close-modal>✕</button>
-    </div>
-    <div class="ui-modal-bd">
-      <p class="pos-lbl" style="margin-bottom:.35rem">أسعار</p>
-      <div class="chip-panel" id="priceChips">
-        <button type="button" class="chip price-chip" data-price="10">10</button>
-        <button type="button" class="chip price-chip" data-price="15">15</button>
-        <button type="button" class="chip price-chip" data-price="20">20</button>
-        <button type="button" class="chip price-chip" data-price="25">25</button>
-        <button type="button" class="chip price-chip" data-price="30">30</button>
-        <button type="button" class="chip price-chip" data-price="40">40</button>
-        <button type="button" class="chip price-chip" data-price="50">50</button>
-      </div>
-      {% if quick_services %}
-      <p class="pos-lbl" style="margin:1rem 0 .35rem">خدمات</p>
-      <div class="chip-panel" id="serviceChips">
-        {% for svc in quick_services %}
-        <button type="button" class="chip service-chip" data-name="{{ svc.name }}" data-price="{{ svc.base_price|floatformat:0 }}">
-          {{ svc.name }}{% if svc.base_price > 0 %} · {{ svc.base_price|floatformat:0 }}{% endif %}
-        </button>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
 <script>
   var CURRENCY = '{{ sys.currency|default:"د.ل" }}';
   var LAST_BARBER_KEY = 'bms_queue_last_barber';
@@ -780,15 +754,10 @@
     });
     if (location.hash === '#pos') {
       setTimeout(function () {
-        var n = document.getElementById('posCustomerName');
-        if (n) n.focus();
+        var chips = document.getElementById('serviceQuickChips');
+        if (chips) chips.focus();
       }, 120);
     }
-    document.querySelectorAll('.qv-preview-item').forEach(function (el) {
-      el.style.cursor = 'pointer';
-      el.title = 'فتح إدارة الطابور';
-      el.addEventListener('click', function () { openModal('modalQueue'); });
-    });
   })();
 
   (function () {
@@ -820,14 +789,16 @@
     var paySelect = document.getElementById('posPaymentSelect');
     var rail = document.getElementById('barberRail');
     var toggles = document.getElementById('payToggles');
-    var nameInp = document.getElementById('posCustomerName');
-    var phoneInp = document.getElementById('posCustomerPhone');
-    var descInp = document.getElementById('posDescription');
     var amtInp = document.getElementById('posAmount');
     var commPrev = document.getElementById('posCommPreview');
     var errBarber = document.getElementById('errBarber');
-    var errName = document.getElementById('errName');
+    var errService = document.getElementById('errService');
     var btnClear = document.getElementById('btnPosClear');
+    var selectedWrap = document.getElementById('posSelectedServices');
+    var selectedEmpty = document.getElementById('posSelectedEmpty');
+    var idsWrap = document.getElementById('posServiceIdsWrap');
+    var POS_SERVICES = {{ services_json|safe }};
+    var selected = new Map();
 
     function getCommPct() {
       var active = rail && rail.querySelector('.barber-chip.is-on');
@@ -843,6 +814,47 @@
         commPrev.classList.add('show');
       } else commPrev.classList.remove('show');
     }
+    function syncSelectedUI() {
+      if (!selectedWrap || !amtInp) return;
+      selectedWrap.querySelectorAll('.pos-sel-tag').forEach(function (el) { el.remove(); });
+      var total = 0;
+      selected.forEach(function (svc) {
+        total += parseFloat(svc.price) || 0;
+        var tag = document.createElement('span');
+        tag.className = 'pos-sel-tag';
+        tag.innerHTML = svc.name + ' · ' + svc.price + ' <button type="button" title="إزالة" data-rm="' + svc.id + '">×</button>';
+        selectedWrap.appendChild(tag);
+      });
+      if (selectedEmpty) selectedEmpty.style.display = selected.size ? 'none' : '';
+      amtInp.value = selected.size ? total : '';
+      if (idsWrap) {
+        idsWrap.innerHTML = '';
+        selected.forEach(function (svc, id) {
+          var inp = document.createElement('input');
+          inp.type = 'hidden';
+          inp.name = 'service_ids';
+          inp.value = id;
+          idsWrap.appendChild(inp);
+        });
+      }
+      document.querySelectorAll('.service-quick').forEach(function (chip) {
+        chip.classList.toggle('is-on', selected.has(chip.getAttribute('data-svc-id')));
+      });
+      updateCommPreview();
+    }
+    function toggleService(id, name, price) {
+      if (selected.has(id)) selected.delete(id);
+      else selected.set(id, { id: id, name: name, price: price });
+      syncSelectedUI();
+    }
+    if (selectedWrap) {
+      selectedWrap.addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-rm]');
+        if (!btn) return;
+        selected.delete(btn.getAttribute('data-rm'));
+        syncSelectedUI();
+      });
+    }
     function syncBarber() {
       if (!rail || !barberSelect) return;
       var v = barberSelect.value;
@@ -853,13 +865,16 @@
       });
       updateCommPreview();
     }
-    function selectBarber(id, focusName) {
+    function selectBarber(id, focusSvc) {
       if (!barberSelect) return;
       barberSelect.value = id;
       if (errBarber) errBarber.textContent = '';
       try { sessionStorage.setItem(LAST_BARBER_KEY, id); } catch (e) {}
       syncBarber();
-      if (focusName !== false && nameInp) { nameInp.focus(); nameInp.select(); }
+      if (focusSvc !== false) {
+        var chipsEl = document.getElementById('serviceQuickChips');
+        if (chipsEl) chipsEl.focus();
+      }
     }
     if (rail && barberSelect) {
       rail.addEventListener('click', function (e) {
@@ -882,94 +897,43 @@
         });
       });
     }
-    function bindChips(root) {
-      if (!root) return;
-      root.addEventListener('click', function (e) {
-        var pc = e.target.closest('.price-chip');
-        if (pc && amtInp) {
-          amtInp.value = pc.getAttribute('data-price');
-          document.querySelectorAll('.price-chip').forEach(function (x) { x.classList.toggle('is-on', x === pc); });
-          updateCommPreview();
-          if (nameInp && !nameInp.value.trim()) nameInp.focus();
-          return;
-        }
-        var sc = e.target.closest('.service-chip');
-        if (sc) {
-          if (descInp) descInp.value = sc.getAttribute('data-name');
-          var p = sc.getAttribute('data-price');
-          if (p && parseFloat(p) > 0 && amtInp) {
-            amtInp.value = p;
-            document.querySelectorAll('.price-chip').forEach(function (x) { x.classList.remove('is-on'); });
-            updateCommPreview();
-          }
-          document.querySelectorAll('.service-chip').forEach(function (x) { x.classList.toggle('is-on', x === sc); });
-          if (nameInp) nameInp.focus();
-        }
-        var extras = document.getElementById('modalExtras');
-        if (extras && extras.classList.contains('is-open') && (pc || sc)) {
-          extras.classList.remove('is-open');
-          extras.setAttribute('hidden', '');
-          document.body.style.overflow = '';
-        }
+    document.querySelectorAll('.service-quick').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        var id = chip.getAttribute('data-svc-id');
+        var name = chip.textContent.split('·')[0].trim();
+        var price = chip.getAttribute('data-price') || '0';
+        toggleService(id, name, price);
       });
-    }
-    bindChips(document.getElementById('priceChips'));
-    bindChips(document.getElementById('serviceChips'));
-    if (amtInp) amtInp.addEventListener('input', function () {
-      document.querySelectorAll('.price-chip').forEach(function (x) { x.classList.remove('is-on'); });
-      updateCommPreview();
     });
     if (btnClear) btnClear.addEventListener('click', function () {
-      if (nameInp) nameInp.value = '';
-      if (phoneInp) phoneInp.value = '';
-      if (descInp) descInp.value = '';
-      if (amtInp) amtInp.value = '';
-      document.querySelectorAll('.price-chip, .service-chip').forEach(function (x) { x.classList.remove('is-on'); });
+      selected.clear();
+      syncSelectedUI();
       if (commPrev) commPrev.classList.remove('show');
-      if (errName) errName.textContent = '';
-      if (nameInp) nameInp.focus();
+      if (errService) errService.textContent = '';
+      var chipsEl = document.getElementById('serviceQuickChips');
+      if (chipsEl) chipsEl.focus();
     });
     addForm.addEventListener('submit', function (e) {
-      if (errName) errName.textContent = '';
+      if (errService) errService.textContent = '';
       if (errBarber) errBarber.textContent = '';
       var errs = [];
-      if (nameInp && !nameInp.value.trim()) { if (errName) errName.textContent = 'مطلوب'; errs.push('اسم الزبون'); }
       if (barberSelect && !barberSelect.value) { if (errBarber) errBarber.textContent = 'اختر الحلاق'; errs.push('الحلاق'); }
+      if (selected.size === 0) { if (errService) errService.textContent = 'اختر خدمة واحدة على الأقل'; errs.push('الخدمات'); }
+      if (amtInp && (!amtInp.value || parseFloat(amtInp.value) <= 0)) errs.push('الإجمالي');
       if (errs.length) { e.preventDefault(); swalAlert('بيانات ناقصة', errs.join(' · '), 'error'); }
     });
     addForm.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
-      var tag = (e.target.tagName || '').toLowerCase();
-      if (tag === 'textarea') return;
-      if (e.ctrlKey || e.metaKey || tag === 'input') {
-        if (e.target.type === 'button') return;
-        e.preventDefault();
-        document.getElementById('btnPosSubmit').click();
-      }
+      if ((e.target.tagName || '').toLowerCase() === 'select') return;
+      e.preventDefault();
+      document.getElementById('btnPosSubmit').click();
     });
-    setTimeout(function () { if (nameInp) nameInp.focus(); }, 150);
+    syncSelectedUI();
+    setTimeout(function () {
+      var chipsEl = document.getElementById('serviceQuickChips');
+      if (chipsEl) chipsEl.focus();
+    }, 150);
   })();
-
-  function calcCommPreview(inp) {
-    var form = inp.closest('.pay-row');
-    if (!form) return;
-    var pct = parseFloat(form.getAttribute('data-comm-pct')) || 0;
-    var amt = parseFloat(inp.value) || 0;
-    var comm = Math.round(amt * pct / 100);
-    var el = form.querySelector('.live-comm');
-    if (el) el.textContent = amt > 0 ? ('عمولة ' + comm + ' · صافي ' + (amt - comm)) : '';
-  }
-  function validatePayment(f) {
-    var a = f.querySelector('input[name="amount"]');
-    if (!a || !a.value || parseFloat(a.value) <= 0) {
-      if (a) { a.style.borderColor = '#dc2626'; a.focus(); }
-      swalAlert('المبلغ مطلوب', 'أدخل مبلغاً صحيحاً', 'error');
-      return false;
-    }
-    return true;
-  }
-  document.querySelectorAll('.pay-row input[name="amount"]').forEach(function (inp) { calcCommPreview(inp); });
 </script>
 
-{% include "frontend/partials/ticket_edit_modal.html" with active_barbers=active_barbers return_qs=return_qs %}
 {% endblock %}

@@ -1,0 +1,80 @@
+{% extends "frontend/base.html" %}
+{% block title %}إغلاق شهري — {{ sys.business_name }}{% endblock %}
+{% block header_title %}إغلاق شهري{% endblock %}
+{% block header_subtitle %}جرد شهري لكل حلاق وإجمالي المحل{% endblock %}
+
+{% block content %}
+<form method="get" class="filter-bar card" style="padding:16px 18px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:end">
+  <div class="field">
+    <label>السنة</label>
+    <input type="number" name="year" value="{{ year }}" min="2020" max="2100" class="field-input" style="width:100px">
+  </div>
+  <div class="field">
+    <label>الشهر</label>
+    <input type="number" name="month" value="{{ month }}" min="1" max="12" class="field-input" style="width:80px">
+  </div>
+  <button type="submit" class="btn btn-p">عرض الجرد</button>
+</form>
+
+<div class="summary-grid" style="margin-bottom:18px">
+  <div class="dark-card kpi-card">
+    <div class="kpi-data">
+      <div class="kv">{{ grand.revenue|floatformat:0 }} <small>{{ sys.currency }}</small></div>
+      <div class="kl">إجمالي إيراد المحل (الشهر)</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-data">
+      <div class="kv" style="color:var(--warning)">{{ grand.commission|floatformat:0 }} <small>{{ sys.currency }}</small></div>
+      <div class="kl">إجمالي عمولات الحلاقين</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-data">
+      <div class="kv">{{ grand.ticket_count }}</div>
+      <div class="kl">عدد الواصلات المكتملة</div>
+    </div>
+  </div>
+</div>
+
+<div class="card-accent">
+  <div class="card-accent-inner">
+    <div class="section-title">جرد شهري لكل حلاق — {{ month }}/{{ year }}</div>
+    <div class="tbl-wrap" style="margin-top:12px">
+      <table>
+        <thead>
+          <tr>
+            <th>الحلاق</th>
+            <th>واصلات</th>
+            <th>الإيراد</th>
+            <th>العمولة</th>
+            <th>أيام إغلاق مسجّلة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td><b>{{ row.barber.display_name }}</b></td>
+            <td>{{ row.ticket_count }}</td>
+            <td>{{ row.revenue|floatformat:0 }} {{ sys.currency }}</td>
+            <td>{{ row.commission|floatformat:0 }} {{ sys.currency }}</td>
+            <td>{{ row.days_closed }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="muted" style="text-align:center;padding:24px">لا بيانات</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:800;background:var(--bg)">
+            <td>الإجمالي</td>
+            <td>{{ grand.ticket_count }}</td>
+            <td>{{ grand.revenue|floatformat:0 }} {{ sys.currency }}</td>
+            <td>{{ grand.commission|floatformat:0 }} {{ sys.currency }}</td>
+            <td>—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

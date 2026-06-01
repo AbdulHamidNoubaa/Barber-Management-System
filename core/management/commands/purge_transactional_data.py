@@ -13,18 +13,21 @@ from accounts.models import BarberProfile, User
 from core.models import (
     AuditEvent,
     BarberCommissionOverride,
+    BarberDailyClose,
     CloseLedger,
     Customer,
     ExpenseCategory,
     Payment,
     Receipt,
     Service,
+    ServiceCategory,
     Shift,
     ShiftTemplate,
     SystemSetting,
     Ticket,
     TicketItem,
     TreasuryEntry,
+    VIPBarberPayout,
     VIPBooking,
 )
 
@@ -45,7 +48,9 @@ class Command(BaseCommand):
             "مدفوعات": Payment.objects.count(),
             "بنود التذاكر": TicketItem.objects.count(),
             "تذاكر/طلبات": Ticket.objects.count(),
+            "توزيع VIP على الحلاقين": VIPBarberPayout.objects.count(),
             "حجوزات VIP": VIPBooking.objects.count(),
+            "إغلاقات يومية للحلاقين": BarberDailyClose.objects.count(),
             "إغلاقات شفت": CloseLedger.objects.count(),
             "حركات الخزنة": TreasuryEntry.objects.count(),
             "شفتات": Shift.objects.count(),
@@ -62,6 +67,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  حلاقون (ملفات): {BarberProfile.objects.count()}")
         self.stdout.write(f"  إعدادات المحل: {SystemSetting.objects.count()}")
         self.stdout.write(f"  خدمات: {Service.objects.count()}")
+        self.stdout.write(f"  تصنيفات خدمات: {ServiceCategory.objects.count()}")
         self.stdout.write(f"  قوالب شفت: {ShiftTemplate.objects.count()}")
         self.stdout.write(f"  تصنيفات مصروف: {ExpenseCategory.objects.count()}")
         self.stdout.write(f"  تجاوزات عمولة: {BarberCommissionOverride.objects.count()}")
@@ -85,7 +91,9 @@ class Command(BaseCommand):
                 (Payment, "مدفوعات"),
                 (TicketItem, "بنود التذاكر"),
                 (Ticket, "تذاكر/طلبات"),
+                (VIPBarberPayout, "توزيع VIP على الحلاقين"),
                 (VIPBooking, "حجوزات VIP"),
+                (BarberDailyClose, "إغلاقات يومية للحلاقين"),
                 (CloseLedger, "إغلاقات شفت"),
                 (TreasuryEntry, "حركات الخزنة"),
                 (Shift, "شفتات"),

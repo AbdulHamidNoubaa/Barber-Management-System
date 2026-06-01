@@ -6,14 +6,25 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from accounts.models import BarberProfile, User, UserRole
-from core.models import ExpenseCategory, PaymentMethod, SystemSetting, TicketStatus, TreasuryEntryType
+from core.models import (
+    ExpenseCategory,
+    PaymentMethod,
+    Service,
+    SystemSetting,
+    TicketStatus,
+    TreasuryEntryType,
+)
 
 
 class QueueTicketForm(forms.Form):
-    customer_name = forms.CharField(max_length=120)
-    customer_phone = forms.CharField(max_length=30, required=False)
-    barber_id = forms.ModelChoiceField(queryset=BarberProfile.objects.none())
-    description = forms.CharField(max_length=255, required=False)
+    """إصدار وصل مباشر — حلاق + خدمات متعددة + دفع."""
+
+    barber_id = forms.ModelChoiceField(queryset=BarberProfile.objects.none(), label="الحلاق")
+    service_ids = forms.ModelMultipleChoiceField(
+        queryset=Service.objects.none(),
+        label="الخدمات",
+        error_messages={"required": "اختر خدمة واحدة على الأقل."},
+    )
     initial_amount = forms.DecimalField(
         required=False,
         min_value=Decimal("0"),
@@ -29,46 +40,41 @@ class QueueTicketForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["barber_id"].queryset = BarberProfile.objects.filter(is_active=True).select_related("user")
         self.fields["barber_id"].label_from_instance = lambda obj: obj.display_name
-        self.fields["customer_name"].widget.attrs.update({
-            "class": "field-input pos-input-name",
-            "placeholder": "اسم الزبون",
-            "autocomplete": "name",
-            "id": "posCustomerName",
-        })
-        self.fields["customer_phone"].widget.attrs.update({
-            "class": "field-input",
-            "placeholder": "09xxxxxxxx",
-            "inputmode": "tel",
-            "id": "posCustomerPhone",
-        })
-        self.fields["description"].widget.attrs.update({
-            "class": "field-input",
-            "placeholder": "قص شعر، لحية، صبغة…",
-            "id": "posDescription",
-            "rows": 2,
-        })
+        self.fields["service_ids"].queryset = Service.objects.filter(is_active=True).order_by("name")
         self.fields["initial_amount"].widget.attrs.update({
             "class": "field-input pos-input-amount",
-            "placeholder": "0",
-            "inputmode": "decimal",
             "id": "posAmount",
-            "min": "0",
-            "step": "1",
+            "readonly": "readonly",
+            "tabindex": "-1",
         })
         self.fields["barber_id"].widget.attrs.update({"id": "posBarberSelect"})
         self.fields["payment_method"].widget.attrs.update({"id": "posPaymentSelect"})
 
+    def clean(self):
+        cleaned = super().clean()
+        services = list(cleaned.get("service_ids") or [])
+        if not services:
+            raise ValidationError({"service_ids": "اختر خدمة واحدة على الأقل."})
+        total = sum((s.base_price or Decimal("0") for s in services), Decimal("0"))
+        if total <= 0:
+            raise ValidationError({"service_ids": "إحدى الخدمات بدون سعر — حدّث الأسعار من الإعدادات."})
+        cleaned["initial_amount"] = total
+        cleaned["service_ids"] = services
+        return cleaned
+
 
 class TicketEditForm(forms.Form):
-    """تعديل تذكرة طابور (حلاقة عادية)."""
+    """تعديل وصل / معاملة مكتملة."""
 
-    customer_name = forms.CharField(max_length=120, label="اسم الزبون")
-    customer_phone = forms.CharField(max_length=30, required=False, label="الجوال")
     barber_id = forms.ModelChoiceField(
         queryset=BarberProfile.objects.none(),
         label="الحلاق",
     )
-    description = forms.CharField(max_length=255, required=False, label="الخدمة / ملاحظة")
+    service_id = forms.ModelChoiceField(
+        queryset=Service.objects.none(),
+        required=False,
+        label="الخدمة",
+    )
     amount = forms.DecimalField(
         required=False,
         min_value=Decimal("0"),
@@ -88,13 +94,13 @@ class TicketEditForm(forms.Form):
         self.fields["barber_id"].queryset = BarberProfile.objects.filter(is_active=True).select_related(
             "user"
         )
+        self.fields["service_id"].queryset = Service.objects.filter(is_active=True).order_by("name")
+        self.fields["service_id"].empty_label = "—"
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "field-input")
         if ticket and not self.is_bound:
-            self.fields["customer_name"].initial = ticket.customer.name
-            self.fields["customer_phone"].initial = ticket.customer.phone or ""
             self.fields["barber_id"].initial = ticket.barber_id
-            self.fields["description"].initial = ticket.description
+            self.fields["service_id"].initial = ticket.service_id
             self.fields["amount"].initial = ticket.total if ticket.total > 0 else None
             self.fields["payment_method"].initial = ticket.payment_method or PaymentMethod.CASH
             self.fields["status"].initial = ticket.status
@@ -128,153 +134,150 @@ class CashierCreateForm(_BaseUserCreateForm):
 
 
 class BarberCreateForm(_BaseUserCreateForm):
-    default_commission_pct = forms.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=100, initial=0)
     role_value = UserRole.BARBER
+    commission_pct = forms.DecimalField(
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        initial=50,
+        label="نسبة العمولة %",
+    )
 
     def save(self, commit=True):
         user = super().save(commit=commit)
         if commit:
-            nm = (user.get_full_name() or user.username or "")[:120]
-            BarberProfile.objects.update_or_create(
+            BarberProfile.objects.create(
                 user=user,
-                defaults={
-                    "default_commission_pct": self.cleaned_data["default_commission_pct"],
-                    "is_active": True,
-                    "name": nm,
-                },
+                name=user.get_full_name() or user.username,
+                default_commission_pct=self.cleaned_data["commission_pct"],
             )
         return user
 
 
 class BarberStandaloneForm(forms.Form):
-    """حلاق بدون حساب دخول — يُعرض اسمه للكاشير فقط."""
-
     name = forms.CharField(max_length=120, label="اسم الحلاق")
     default_commission_pct = forms.DecimalField(
-        max_digits=5, decimal_places=2, min_value=0, max_value=100, initial=0
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        initial=50,
+        label="نسبة العمولة %",
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.update({"class": "field-input"})
 
 
 class BarberCommissionForm(forms.ModelForm):
     class Meta:
         model = BarberProfile
         fields = ["name", "default_commission_pct", "is_active"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["name"].widget.attrs.update(
-            {"class": "field-input", "maxlength": "120", "required": True}
-        )
-        self.fields["default_commission_pct"].widget.attrs.update(
-            {"class": "field-input st-barber-pct-input", "step": "0.01", "min": "0", "max": "100"}
-        )
-        self.fields["is_active"].widget.attrs.update({"class": "field-checkbox"})
+        labels = {
+            "name": "الاسم",
+            "default_commission_pct": "نسبة العمولة %",
+            "is_active": "نشط",
+        }
 
 
 class UserEditForm(forms.ModelForm):
-    """Update staff user details; optional password change when the password field is non-empty."""
-
-    password = forms.CharField(widget=forms.PasswordInput, required=False)
-
     class Meta:
         model = User
-        fields = ["username", "first_name", "last_name", "email", "role"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.update({"class": "field-input"})
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        pwd = self.cleaned_data.get("password") or ""
-        if pwd:
-            user.set_password(pwd)
-        if commit:
-            user.save()
-        return user
-
-
-class SystemSettingForm(forms.ModelForm):
-    class Meta:
-        model = SystemSetting
-        fields = ["key", "value", "description"]
+        fields = ["first_name", "last_name", "email", "role"]
+        labels = {
+            "first_name": "الاسم الأول",
+            "last_name": "الاسم الأخير",
+            "email": "البريد",
+            "role": "الدور",
+        }
 
 
 class TreasuryEntryForm(forms.Form):
-    """تسجيل حركة خزنة: مصروف (يتطلب تصنيفاً) أو إيداع."""
-
-    entry_type = forms.ChoiceField(choices=TreasuryEntryType.choices, label="نوع الحركة")
+    entry_type = forms.ChoiceField(
+        choices=TreasuryEntryType.choices,
+        label="نوع الحركة",
+        widget=forms.Select(attrs={"class": "field-input", "id": "treasuryEntryType"}),
+    )
     amount = forms.DecimalField(
         min_value=Decimal("0.01"),
         max_digits=12,
         decimal_places=2,
         label="المبلغ",
+        widget=forms.NumberInput(attrs={"class": "field-input", "step": "0.01", "min": "0.01"}),
     )
     payment_method = forms.ChoiceField(
-        choices=[(PaymentMethod.CASH, "نقدي"), (PaymentMethod.CARD, "بطاقة")],
-        initial=PaymentMethod.CASH,
+        choices=PaymentMethod.choices,
         label="طريقة السداد",
+        initial=PaymentMethod.CASH,
+        widget=forms.Select(attrs={"class": "field-input", "id": "treasuryPayMethod"}),
     )
-    category = forms.ModelChoiceField(
+    category_id = forms.ModelChoiceField(
         queryset=ExpenseCategory.objects.none(),
         required=False,
         label="تصنيف المصروف",
+        empty_label="— اختر التصنيف —",
+        widget=forms.Select(attrs={"class": "field-input", "id": "treasuryCategory"}),
     )
-    description = forms.CharField(max_length=255, required=False, label="ملاحظة (اختياري)")
+    description = forms.CharField(
+        required=False,
+        max_length=255,
+        label="ملاحظة",
+        widget=forms.TextInput(attrs={"class": "field-input", "placeholder": "اختياري"}),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["category"].queryset = ExpenseCategory.objects.filter(is_active=True).order_by(
+        self.fields["category_id"].queryset = ExpenseCategory.objects.filter(is_active=True).order_by(
             "sort_order", "name"
         )
-        self.fields["category"].empty_label = "— اختر التصنيف —"
-        for field in self.fields.values():
-            field.widget.attrs.update({"class": "field-input"})
+        self.fields["entry_type"].choices = [
+            (TreasuryEntryType.EXPENSE, "مصروف"),
+            (TreasuryEntryType.DEPOSIT, "إيداع"),
+        ]
+        self.fields["payment_method"].choices = [
+            (PaymentMethod.CASH, "نقدي"),
+            (PaymentMethod.CARD, "بطاقة"),
+        ]
 
     def clean(self):
         cleaned = super().clean()
-        et = cleaned.get("entry_type")
-        cat = cleaned.get("category")
-        if et == TreasuryEntryType.EXPENSE and not cat:
-            raise ValidationError("اختر تصنيفاً للمصروف.")
-        if et == TreasuryEntryType.DEPOSIT and cat:
-            self.add_error("category", "الإيداع لا يستخدم تصنيف مصروف — اترك الحقل فارغاً.")
+        if cleaned.get("entry_type") == TreasuryEntryType.EXPENSE and not cleaned.get("category_id"):
+            raise forms.ValidationError("اختر تصنيف المصروف من القائمة.")
+        if cleaned.get("entry_type") == TreasuryEntryType.DEPOSIT:
+            cleaned["category_id"] = None
         return cleaned
 
 
-class ExpenseCategoryForm(forms.Form):
-    name = forms.CharField(max_length=80, label="اسم التصنيف الجديد")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["name"].widget.attrs.update({"class": "field-input"})
+class ExpenseCategoryForm(forms.ModelForm):
+    class Meta:
+        model = ExpenseCategory
+        fields = ["name", "is_active"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "field-input", "placeholder": "مثال: إيجار"}),
+        }
 
 
 class VIPBookingForm(forms.Form):
     """نموذج حجز VIP للعرسان والحفلات"""
-    
+
     customer_name = forms.CharField(
         max_length=120,
-        label="اسم المتلقي",
-        widget=forms.TextInput(attrs={"class": "field-input"})
+        required=False,
+        label="اسم العميل (اختياري)",
+        widget=forms.TextInput(
+            attrs={
+                "class": "field-input",
+                "placeholder": "يُولَّد تلقائياً: زبون #…",
+            }
+        ),
     )
     customer_phone = forms.CharField(
         max_length=30,
-        label="رقم الهاتف",
-        widget=forms.TextInput(attrs={"class": "field-input"})
+        required=False,
+        label="رقم الهاتف (اختياري)",
+        widget=forms.TextInput(attrs={"class": "field-input"}),
     )
     booking_type = forms.ChoiceField(
         choices=[
-            ('WEDDING', 'عرس'),
-            ('EVENT', 'حفل'),
-            ('GROUP', 'مجموعة'),
-            ('CUSTOM', 'مخصص'),
+            ("VIP", "VIP"),
+            ("WEDDING", "عرس"),
+            ("EVENT", "حفل"),
+            ("GROUP", "مجموعة"),
+            ("CUSTOM", "مخصص"),
         ],
         label="نوع الحجز",
         widget=forms.Select(attrs={"class": "field-input"})
@@ -323,23 +326,54 @@ class VIPBookingForm(forms.Form):
         label="طلبات خاصة",
         widget=forms.Textarea(attrs={"class": "field-input", "rows": 3})
     )
+    assigned_barber_ids = forms.ModelMultipleChoiceField(
+        queryset=BarberProfile.objects.none(),
+        required=False,
+        label="الحلاقون المشاركون",
+        widget=forms.SelectMultiple(attrs={"class": "field-input", "size": 5}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["assigned_barber_ids"].queryset = BarberProfile.objects.filter(
+            is_active=True
+        ).order_by("name")
+        self.fields["assigned_barber_ids"].label_from_instance = lambda obj: obj.display_name
 
 
 class ReceiptGenerationForm(forms.Form):
     """نموذج توليد وصل للعملية"""
-    
+
     RECEIPT_TYPE_CHOICES = [
         ('TICKET', 'وصل تذكرة'),
         ('PAYMENT', 'وصل دفع'),
     ]
-    
+
     receipt_type = forms.ChoiceField(
         choices=RECEIPT_TYPE_CHOICES,
         label="نوع الوصل",
-        widget=forms.Select(attrs={"class": "field-input"})
+        widget=forms.Select(attrs={'class': 'field-input'})
     )
     note = forms.CharField(
         required=False,
-        label="ملاحظات إضافية",
-        widget=forms.Textarea(attrs={"class": "field-input", "rows": 3})
+        label="ملاحظة",
+        widget=forms.Textarea(attrs={'class': 'field-input', 'rows': 2})
     )
+
+
+class SystemSettingsForm(forms.Form):
+    business_name = forms.CharField(required=False)
+    business_phone = forms.CharField(required=False)
+    business_address = forms.CharField(required=False, widget=forms.Textarea)
+    currency = forms.CharField(required=False, initial="د.ل")
+    theme = forms.ChoiceField(choices=[("light", "فاتح"), ("dark", "داكن")], required=False)
+
+    @staticmethod
+    def load_initial():
+        keys = ("business_name", "business_phone", "business_address", "currency", "theme")
+        data = {}
+        for key in keys:
+            row = SystemSetting.objects.filter(key=key).first()
+            if row:
+                data[key] = row.value
+        return data

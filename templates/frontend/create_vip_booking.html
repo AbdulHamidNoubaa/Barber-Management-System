@@ -14,6 +14,7 @@
     <form method="post" class="vip-form">
       {% csrf_token %}
       
+      <p class="muted" style="font-size:.82rem;margin:0 0 12px">إن تُرك الاسم فارغاً يُنشأ تلقائياً بصيغة <strong>زبون #رقم</strong> لكل حجز جديد.</p>
       <div class="grid-2">
         <div class="field">
           <label>{{ form.customer_name.label }}</label>
@@ -70,6 +71,12 @@
       <div class="field">
         <label>{{ form.special_requests.label }}</label>
         {{ form.special_requests }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.assigned_barber_ids.label }}</label>
+        {{ form.assigned_barber_ids }}
+        <p class="muted" style="font-size:.75rem;margin-top:4px">حدّد الحلاقين المشاركين في خدمة VIP (Ctrl+نقر لاختيار متعدد)</p>
       </div>
 
       <div style="margin-top: 24px; display: flex; gap: 12px;">

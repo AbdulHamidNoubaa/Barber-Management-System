@@ -71,8 +71,14 @@
         <div class="field"><label>نوع الحركة</label>{{ entry_form.entry_type }}</div>
         <div class="field"><label>المبلغ</label>{{ entry_form.amount }}</div>
         <div class="field"><label>طريقة السداد</label>{{ entry_form.payment_method }}</div>
-        <div class="field"><label>تصنيف المصروف</label>{{ entry_form.category }}</div>
-        <p style="font-size:.72rem;color:var(--muted);margin:-4px 0 8px">يُستخدم التصنيف عند اختيار «مصروف» فقط.</p>
+        <div class="field" id="treasuryCategoryWrap">
+          <label for="treasuryCategory">تصنيف المصروف</label>
+          {{ entry_form.category_id }}
+          {% if entry_form.category_id.errors %}
+          <div class="message error" style="margin-top:6px">{{ entry_form.category_id.errors }}</div>
+          {% endif %}
+          <p style="font-size:.72rem;color:var(--muted);margin:6px 0 0">يُستخدم التصنيف عند اختيار «مصروف» فقط.</p>
+        </div>
         <div class="field"><label>ملاحظة</label>{{ entry_form.description }}</div>
         {% if entry_form.non_field_errors %}
         <div class="message error" style="margin-bottom:10px">{{ entry_form.non_field_errors }}</div>
@@ -102,8 +108,34 @@
         {% endif %}
         <button type="submit" class="btn btn-o">إضافة تصنيف</button>
       </form>
-      <div style="margin-top:14px;font-size:.74rem;color:var(--muted)">
-        تصنيفات نشطة: {% for c in categories %}<span style="display:inline-block;margin:4px 0 4px 8px;padding:4px 8px;border-radius:8px;background:var(--primary-soft);font-weight:600">{{ c.name }}</span>{% empty %}—{% endfor %}
+
+      <div style="margin-top:18px">
+        <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:10px">التصنيفات النشطة</div>
+        {% for c in categories %}
+        <div class="exp-cat-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fafbfc">
+          <form method="post" style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit_category">
+            <input type="hidden" name="category_id" value="{{ c.id }}">
+            <input type="hidden" name="from" value="{{ filter_from }}">
+            <input type="hidden" name="to" value="{{ filter_to }}">
+            <input type="hidden" name="kind" value="{{ filter_kind }}">
+            <input type="text" name="category_name" value="{{ c.name }}" class="field-input" maxlength="80" required style="flex:1;min-width:120px">
+            <button type="submit" class="btn btn-o btn-sm">حفظ</button>
+          </form>
+          <form method="post" onsubmit="return confirm('حذف تصنيف «{{ c.name|escapejs }}»؟\nإن وُجدت مصروفات مرتبطة سيُوقف التصنيف فقط.')">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_category">
+            <input type="hidden" name="category_id" value="{{ c.id }}">
+            <input type="hidden" name="from" value="{{ filter_from }}">
+            <input type="hidden" name="to" value="{{ filter_to }}">
+            <input type="hidden" name="kind" value="{{ filter_kind }}">
+            <button type="submit" class="btn btn-d btn-sm">حذف</button>
+          </form>
+        </div>
+        {% empty %}
+        <p style="font-size:.74rem;color:var(--muted);margin:0">لا توجد تصنيفات بعد.</p>
+        {% endfor %}
       </div>
     </div>
   </div>
@@ -172,4 +204,24 @@
     {% include "frontend/partials/pagination.html" with page_obj=entries_page query_string=query_string %}
   </div>
 </div>
+<script>
+(function () {
+  var typeEl = document.getElementById("treasuryEntryType");
+  var wrap = document.getElementById("treasuryCategoryWrap");
+  var catEl = document.getElementById("treasuryCategory");
+  if (!typeEl || !wrap) return;
+
+  function syncCategory() {
+    var isExpense = typeEl.value === "EXPENSE";
+    wrap.style.display = isExpense ? "" : "none";
+    if (catEl) {
+      catEl.required = isExpense;
+      if (!isExpense) catEl.value = "";
+    }
+  }
+
+  typeEl.addEventListener("change", syncCategory);
+  syncCategory();
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,26 @@
+{% comment %}شفت واحد مفتوح — فتح / إغلاق يدوي{% endcomment %}
+<div class="shift-controls">
+  {% if current_shift %}
+  <div class="shift-controls-active">
+    <span class="shift-controls-dot on"></span>
+    <span><strong>{{ current_shift.name }}</strong> · منذ {{ current_shift.started_at|date:"d/m H:i" }}</span>
+    {% if can_close_shift %}
+    <form method="post" class="shift-controls-form" onsubmit="return confirm('إغلاق هذا الشفت؟ يمكنك فتح شفت جديد بعد ذلك.')">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="close_shift">
+      <button type="submit" class="btn btn-d btn-sm">إغلاق الشفت</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="shift-controls-idle">
+    <span class="shift-controls-dot off"></span>
+    <span style="color:var(--warning);font-weight:800">لا يوجد شفت مفتوح</span>
+    <form method="post" class="shift-controls-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="open_shift">
+      <button type="submit" class="btn btn-p btn-sm">فتح {{ next_shift_label }}</button>
+    </form>
+  </div>
+  {% endif %}
+</div>

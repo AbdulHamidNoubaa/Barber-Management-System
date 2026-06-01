@@ -1,0 +1,60 @@
+{% extends "frontend/base.html" %}
+{% block title %}الحلاقين — {{ sys.business_name }}{% endblock %}
+{% block header_title %}الحلاقين وعملياتهم{% endblock %}
+{% block header_subtitle %}اختر حلاقاً لعرض جميع الواصلات والمعاملات{% endblock %}
+
+{% block content %}
+<form method="get" class="filter-bar card" style="padding:16px 18px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:end">
+  <div class="field">
+    <label>الفترة</label>
+    <select name="period" class="field-input" id="barbersPeriod">
+      <option value="today" {% if filter_period == "today" %}selected{% endif %}>اليوم</option>
+      <option value="month" {% if filter_period == "month" %}selected{% endif %}>هذا الشهر</option>
+      <option value="all" {% if filter_period == "all" %}selected{% endif %}>الكل</option>
+      <option value="custom" {% if filter_period == "custom" %}selected{% endif %}>مخصص</option>
+    </select>
+  </div>
+  <div class="field period-custom" style="{% if filter_period != 'custom' %}display:none{% endif %}">
+    <label>من</label>
+    <input type="date" name="from" value="{% if filter_from %}{{ filter_from|date:'Y-m-d' }}{% endif %}" class="field-input">
+  </div>
+  <div class="field period-custom" style="{% if filter_period != 'custom' %}display:none{% endif %}">
+    <label>إلى</label>
+    <input type="date" name="to" value="{% if filter_to %}{{ filter_to|date:'Y-m-d' }}{% endif %}" class="field-input">
+  </div>
+  <button type="submit" class="btn btn-p">تطبيق</button>
+</form>
+
+<div class="summary-grid" style="margin-bottom:18px">
+  {% for row in barber_rows %}
+  {% if row.barber.is_active or row.stats.completed > 0 %}
+  <a href="{% url 'frontend:barber_operations' row.barber.id %}?period={{ filter_period }}{% if filter_from %}&from={{ filter_from|date:'Y-m-d' }}{% endif %}{% if filter_to %}&to={{ filter_to|date:'Y-m-d' }}{% endif %}" class="dark-card kpi-card" style="text-decoration:none;color:inherit;display:flex;gap:12px;align-items:center">
+    <div style="width:44px;height:44px;border-radius:12px;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem">{{ row.barber.initial_letter }}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:800;font-size:.95rem">{{ row.barber.display_name }}{% if not row.barber.is_active %} <span style="color:var(--danger);font-size:.7rem">(موقوف)</span>{% endif %}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:4px">
+        مكتمل: <b>{{ row.stats.completed }}</b>
+        (POS <b>{{ row.stats.pos_completed }}</b> · VIP <b>{{ row.stats.vip_completed }}</b>)
+        · إيراد: <b>{{ row.stats.revenue|floatformat:0 }}</b> {{ sys.currency }}
+      </div>
+      <div style="font-size:.68rem;color:var(--primary);margin-top:6px;font-weight:700">عرض العمليات ←</div>
+    </div>
+  </a>
+  {% endif %}
+  {% empty %}
+  <p class="muted">لا يوجد حلاقون.</p>
+  {% endfor %}
+</div>
+
+<script>
+(function () {
+  var sel = document.getElementById('barbersPeriod');
+  if (!sel) return;
+  sel.addEventListener('change', function () {
+    document.querySelectorAll('.period-custom').forEach(function (el) {
+      el.style.display = sel.value === 'custom' ? '' : 'none';
+    });
+  });
+})();
+</script>
+{% endblock %}

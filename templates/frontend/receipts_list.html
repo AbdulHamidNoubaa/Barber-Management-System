@@ -28,7 +28,7 @@
           <tr>
             <th>رقم الوصل</th>
             <th>التاريخ</th>
-            <th>العميل</th>
+            <!-- <th>العميل</th> -->
             <th>النوع</th>
             <th>المبلغ</th>
             <th>الطريقة</th>
@@ -41,7 +41,7 @@
           <tr>
             <td><code style="font-weight: 800;">{{ r.receipt_number }}</code></td>
             <td class="muted">{{ r.created_at|date:"d/m/Y H:i" }}</td>
-            <td><b>{{ r.customer_name }}</b></td>
+            <!-- <td><b>{{ r.customer_name }}</b></td> -->
             <td><span class="badge b-wait">{{ r.get_receipt_type_display }}</span></td>
             <td><span class="price-tag">{{ r.amount }} {{ sys.currency }}</span></td>
             <td>

@@ -196,6 +196,13 @@
         </span>
         <span class="settings-nav-badge">{{ shift_templates|length }}</span>
       </button>
+      <button type="button" class="settings-nav-item" data-panel="services">
+        <span class="settings-nav-icon">{% include "frontend/partials/icon.html" with name="currency" size=16 %}</span>
+        <span class="settings-nav-text">
+          <span class="settings-nav-label">الخدمات والأسعار</span>
+          <span class="settings-nav-hint">قائمة POS</span>
+        </span>
+      </button>
       <button type="button" class="settings-nav-item" data-panel="barbers">
         <span class="settings-nav-icon">{% include "frontend/partials/icon.html" with name="scissors" size=16 %}</span>
         <span class="settings-nav-text">
@@ -228,6 +235,7 @@
       <button type="button" class="settings-nav-item active" data-panel="brand">الهوية</button>
       <button type="button" class="settings-nav-item" data-panel="staff">الموظفون</button>
       <button type="button" class="settings-nav-item" data-panel="shift">الشفت</button>
+      <button type="button" class="settings-nav-item" data-panel="services">خدمات</button>
       <button type="button" class="settings-nav-item" data-panel="barbers">الحلاقون</button>
       <button type="button" class="settings-nav-item" data-panel="users">المستخدمون</button>
     </nav>
@@ -317,7 +325,7 @@
             <div class="st-mini">
               <div class="st-mini-hd cashier">{% include "frontend/partials/icon.html" with name="monitor" size=15 %} كاشير</div>
               <div class="st-mini-body">
-                <p class="st-desc">تسجيل المعاملات، الطابور، واستقبال الزبائن.</p>
+                <p class="st-desc">تسجيل المعاملات،  واستقبال الزبائن.</p>
                 {% if open_form == "cashier" and cashier_form.errors %}<div class="err-box">راجع الحقول أدناه.</div>{% endif %}
                 <form method="post">
                   {% csrf_token %}
@@ -351,7 +359,7 @@
     </section>
 
     <!-- ═══ Panel: Shift ═══ -->
-    <section id="panel-shift" class="settings-panel" data-title="الشفت وأنواع الجدولة" data-desc="الشفت الحالي، إغلاقه، وقوالب الأوقات والكاشيرين">
+    <section id="panel-shift" class="settings-panel" data-title="الشفت" data-desc="شفت واحد مفتوح — فتح وإغلاق يدوي، ويمكن فتح شفت جديد بعد كل إغلاق">
       <div class="st-card">
         <div class="st-card-body">
           {% if current_shift %}
@@ -364,25 +372,33 @@
             <form method="post">
               {% csrf_token %}
               <input type="hidden" name="action" value="close_shift">
-              <button type="submit" class="btn btn-d btn-sm" onclick="return confirm('إغلاق الشفت الحالي؟')">إغلاق الشفت</button>
+              <button type="submit" class="btn btn-d btn-sm" onclick="return confirm('إغلاق هذا الشفت؟')">إغلاق الشفت</button>
             </form>
             {% endif %}
           </div>
           {% else %}
           <div class="shift-pill warn">
             <strong style="color:var(--warning)">لا يوجد شفت مفتوح.</strong>
-            يمكن فتح شفت من لوحة التحكم أو عبر الجدولة التلقائية.
           </div>
+          <form method="post" style="margin:.75rem 0 1rem">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="open_shift">
+            <button type="submit" class="btn btn-p btn-sm">فتح {{ next_shift_label }}</button>
+          </form>
           {% endif %}
 
-          <div style="font-size:.78rem;font-weight:800;color:var(--text-2);margin-bottom:.6rem">إضافة نوع شفت جديد</div>
+          <p style="font-size:.78rem;color:var(--muted);margin:0 0 1rem;line-height:1.5">
+            <strong>شفت واحد مفتوح</strong> في كل وقت. بعد الإغلاق (حتى بعد منتصف الليل) يمكنك فتح <strong>شفت جديد</strong> صباحاً. إن بقي شفت قديم مفتوحاً من يوم سابق، أغلقه أولاً.
+          </p>
+
+          <div style="font-size:.78rem;font-weight:800;color:var(--text-2);margin-bottom:.6rem">ملاحظات داخلية (اختياري — لا تفتح شفتاً تلقائياً)</div>
           <form method="post" class="st-grid2" style="align-items:flex-end;margin-bottom:1.25rem">
             {% csrf_token %}
             <input type="hidden" name="action" value="add_shift_template">
             <div class="st-field"><label>اسم النوع</label><input name="tpl_name" type="text" placeholder="مثال: صباحي" required maxlength="80"></div>
             <div class="st-field"><label>وصف (اختياري)</label><input name="tpl_desc" type="text" maxlength="255"></div>
-            <div class="st-field"><label>وقت البداية</label><input name="tpl_start" type="time"></div>
-            <div class="st-field"><label>وقت النهاية</label><input name="tpl_end" type="time"></div>
+            <div class="st-field"><label>وقت البداية (مرجع فقط)</label><input name="tpl_start" type="time"></div>
+            <div class="st-field"><label>وقت النهاية (مرجع فقط)</label><input name="tpl_end" type="time"></div>
             <div style="grid-column:1/-1"><button type="submit" class="btn btn-p btn-sm">حفظ نوع الشفت</button></div>
           </form>
 
@@ -438,6 +454,62 @@
       </div>
     </section>
 
+    <!-- ═══ Panel: Services ═══ -->
+    <section id="panel-services" class="settings-panel" data-title="الخدمات والأسعار" data-desc="قائمة خدمات مسطّحة لنقطة البيع — اسم وسعر ثابت">
+      <div class="st-card" id="sec-services">
+        <div class="st-card-hd">
+          <div class="st-card-title">إدارة الخدمات والأسعار</div>
+          <div class="st-card-desc">شعر = 20، شعر + وجه = 20، صبغة = حسب السعر المحدد — بدون تصنيفات</div>
+        </div>
+        <div class="st-card-body">
+          <form method="post" class="st-grid3" style="margin-bottom:1.25rem;padding:1rem;background:var(--bg);border-radius:var(--radius-md)">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_service">
+            <div class="st-field"><label>اسم الخدمة</label><input name="service_name" type="text" required maxlength="120" placeholder="شعر + وجه"></div>
+            <div class="st-field"><label>السعر ({{ sys.currency|default:"د.ل" }})</label><input name="service_price" type="number" step="1" min="0" value="20" required></div>
+            <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-p btn-sm">إضافة خدمة</button></div>
+          </form>
+          <div class="tbl-wrap">
+            <table class="st-tbl">
+              <thead><tr><th>الخدمة</th><th>السعر</th><th>إجراءات</th></tr></thead>
+              <tbody>
+                {% for svc in all_services %}
+                <tr>
+                  <td>
+                    <form method="post" style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="edit_service">
+                      <input type="hidden" name="service_id" value="{{ svc.id }}">
+                      <input type="text" name="service_name" value="{{ svc.name }}" class="field-input" style="max-width:200px;padding:.35rem .5rem;font-size:.8rem" maxlength="120" required>
+                      <button type="submit" class="btn btn-p btn-sm">حفظ</button>
+                    </form>
+                  </td>
+                  <td>
+                    <form method="post" style="display:flex;gap:.35rem;align-items:center">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="edit_service">
+                      <input type="hidden" name="service_id" value="{{ svc.id }}">
+                      <input type="hidden" name="service_name" value="{{ svc.name }}">
+                      <input type="number" name="service_price" value="{{ svc.base_price|floatformat:0 }}" class="field-input" style="width:80px;padding:.35rem;font-size:.8rem" step="1" min="0">
+                      <button type="submit" class="btn btn-p btn-sm">حفظ</button>
+                    </form>
+                  </td>
+                  <td style="white-space:nowrap">
+                    {% if not svc.is_active %}<span class="muted" style="font-size:.7rem">موقوف · </span>{% endif %}
+                    <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="toggle_service"><input type="hidden" name="service_id" value="{{ svc.id }}"><button type="submit" class="btn btn-o btn-sm">{% if svc.is_active %}إيقاف{% else %}تفعيل{% endif %}</button></form>
+                    <form method="post" style="display:inline" onsubmit="return confirm('حذف الخدمة «{{ svc.name|escapejs }}»؟')">{% csrf_token %}<input type="hidden" name="action" value="delete_service"><input type="hidden" name="service_id" value="{{ svc.id }}"><button type="submit" class="btn btn-d btn-sm">حذف</button></form>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="muted" style="text-align:center;padding:1rem">لا توجد خدمات — أضف خدمة من الأعلى</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ═══ Panel: Barbers ═══ -->
     <section id="panel-barbers" class="settings-panel" data-title="الحلاقون والعمولة" data-desc="اضبط نسبة العمولة وحالة النشاط لكل حلاق">
       <div class="st-card">
@@ -455,6 +527,7 @@
                   <th>النسبة الحالية</th>
                   <th>تعديل %</th>
                   <th>نشط</th>
+                  <th>العمليات</th>
                   <th></th>
                 </tr>
               </thead>
@@ -486,6 +559,9 @@
                         <input type="checkbox" name="is_active" {% if b.is_active %}checked{% endif %}>
                         {% if b.is_active %}<span class="tag-yes">نشط</span>{% else %}<span class="tag-no">موقوف</span>{% endif %}
                       </label>
+                    </td>
+                    <td data-label="العمليات">
+                      <a href="{% url 'frontend:barber_operations' b.id %}" class="btn btn-o btn-sm">عرض العمليات</a>
                     </td>
                     <td data-label=""><button type="submit" class="btn btn-g btn-sm">حفظ</button></td>
                   </form>
@@ -645,7 +721,7 @@
   };
   var HASH_MAP = {
     'sec-brand': 'brand', 'sec-staff': 'staff', 'sec-shift': 'shift',
-    'sec-barbers': 'barbers', 'sec-users': 'users'
+    'sec-services': 'services', 'sec-barbers': 'barbers', 'sec-users': 'users'
   };
 
   function showPanel(id) {
