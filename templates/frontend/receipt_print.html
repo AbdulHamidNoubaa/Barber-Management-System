@@ -99,7 +99,23 @@
 
   <div class="no-print">
     <button type="button" onclick="window.print()" style="padding:8px 16px;font-family:inherit;cursor:pointer">إعادة الطباعة</button>
-    <button type="button" onclick="window.close()" style="padding:8px 16px;font-family:inherit;cursor:pointer;margin-right:6px">إغلاق</button>
+    <button type="button" id="btnCloseReceipt" style="padding:8px 16px;font-family:inherit;cursor:pointer;margin-right:6px">إغلاق</button>
   </div>
+  <script>
+  (function () {
+    var closeUrl = "{{ close_url|escapejs }}";
+    function closeReceipt() {
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.close();
+          return;
+        } catch (e) { /* متصفح يمنع الإغلاق */ }
+      }
+      window.location.href = closeUrl;
+    }
+    var btn = document.getElementById("btnCloseReceipt");
+    if (btn) btn.addEventListener("click", closeReceipt);
+  })();
+  </script>
 </body>
 </html>

@@ -15,12 +15,29 @@
   </div>
 </div>
 
-<form method="get" class="filter-bar card" style="padding:16px 18px;margin-bottom:18px">
+<form method="get" class="filter-bar card" style="padding:16px 18px;margin-bottom:18px;flex-wrap:wrap;align-items:end">
   <div class="field">
+    <label>نطاق العرض</label>
+    <select name="scope" id="treasuryScopeMode" class="field-input">
+      <option value="shift" {% if filter_scope == "shift" %}selected{% endif %}>حسب الشفت</option>
+      <option value="date" {% if filter_scope == "date" %}selected{% endif %}>حسب التاريخ (تقويمي)</option>
+    </select>
+  </div>
+  <div class="field treasury-filter-shift" style="{% if filter_scope != 'shift' %}display:none{% endif %}">
+    <label>الشفت</label>
+    <select name="shift_id" class="field-input" style="min-width:220px">
+      {% for s in shift_choices %}
+      <option value="{{ s.id }}" {% if filter_shift and s.id == filter_shift.id %}selected{% endif %}>
+        {{ s.name }}{% if not s.is_closed %} (مفتوح){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field treasury-filter-date" style="{% if filter_scope == 'shift' %}display:none{% endif %}">
     <label>من تاريخ</label>
     <input type="date" name="from" value="{{ filter_from }}" class="field-input">
   </div>
-  <div class="field">
+  <div class="field treasury-filter-date" style="{% if filter_scope == 'shift' %}display:none{% endif %}">
     <label>إلى تاريخ</label>
     <input type="date" name="to" value="{{ filter_to }}" class="field-input">
   </div>
@@ -33,8 +50,15 @@
     </select>
   </div>
   <button type="submit" class="btn btn-p">تطبيق</button>
-  <a href="{% url 'frontend:treasury' %}" class="btn btn-o">اليوم فقط</a>
+  {% if filter_shift and filter_scope == "shift" %}
+  <a href="{% url 'frontend:treasury' %}?scope=shift&shift_id={{ filter_shift.id }}" class="btn btn-o">تحديث الشفت</a>
+  {% else %}
+  <a href="{% url 'frontend:treasury' %}?scope=date" class="btn btn-o">اليوم تقويمي</a>
+  {% endif %}
 </form>
+{% if filter_scope == "shift" and filter_shift_range %}
+<p style="font-size:.78rem;color:var(--muted);margin:-10px 0 14px">نطاق الشفت: <b>{{ filter_shift_range }}</b></p>
+{% endif %}
 
 <div class="kpi-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
   <div class="kpi-card" style="border-right: 4px solid var(--q-primary);">
@@ -65,9 +89,7 @@
       <form method="post" style="margin-top:12px">
         {% csrf_token %}
         <input type="hidden" name="action" value="add_entry">
-        <input type="hidden" name="from" value="{{ filter_from }}">
-        <input type="hidden" name="to" value="{{ filter_to }}">
-        <input type="hidden" name="kind" value="{{ filter_kind }}">
+        {% include "frontend/partials/treasury_scope_hidden.html" %}
         <div class="field"><label>نوع الحركة</label>{{ entry_form.entry_type }}</div>
         <div class="field"><label>المبلغ</label>{{ entry_form.amount }}</div>
         <div class="field"><label>طريقة السداد</label>{{ entry_form.payment_method }}</div>
@@ -99,9 +121,7 @@
       <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="add_category">
-        <input type="hidden" name="from" value="{{ filter_from }}">
-        <input type="hidden" name="to" value="{{ filter_to }}">
-        <input type="hidden" name="kind" value="{{ filter_kind }}">
+        {% include "frontend/partials/treasury_scope_hidden.html" %}
         <div class="field"><label>الاسم</label>{{ category_form.name }}</div>
         {% if category_form.errors %}
         <div class="message error" style="margin-bottom:10px">{{ category_form.errors }}</div>
@@ -117,19 +137,18 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="edit_category">
             <input type="hidden" name="category_id" value="{{ c.id }}">
-            <input type="hidden" name="from" value="{{ filter_from }}">
-            <input type="hidden" name="to" value="{{ filter_to }}">
-            <input type="hidden" name="kind" value="{{ filter_kind }}">
+            {% include "frontend/partials/treasury_scope_hidden.html" %}
             <input type="text" name="category_name" value="{{ c.name }}" class="field-input" maxlength="80" required style="flex:1;min-width:120px">
             <button type="submit" class="btn btn-o btn-sm">حفظ</button>
           </form>
-          <form method="post" onsubmit="return confirm('حذف تصنيف «{{ c.name|escapejs }}»؟\nإن وُجدت مصروفات مرتبطة سيُوقف التصنيف فقط.')">
+          <form method="post" class="swal-confirm-form"
+                data-swal-title="حذف التصنيف"
+                data-swal-text="حذف «{{ c.name|escapejs }}»؟ إن وُجدت مصروفات مرتبطة يُوقف التصنيف فقط."
+                data-swal-icon="warning">
             {% csrf_token %}
             <input type="hidden" name="action" value="delete_category">
             <input type="hidden" name="category_id" value="{{ c.id }}">
-            <input type="hidden" name="from" value="{{ filter_from }}">
-            <input type="hidden" name="to" value="{{ filter_to }}">
-            <input type="hidden" name="kind" value="{{ filter_kind }}">
+            {% include "frontend/partials/treasury_scope_hidden.html" %}
             <button type="submit" class="btn btn-d btn-sm">حذف</button>
           </form>
         </div>
@@ -182,13 +201,14 @@
             {% if request.user.role == "ADMIN" or request.user.is_superuser %}
             <td style="white-space:nowrap">
               {% if not e.is_voided %}
-              <form method="post" style="display:inline" onsubmit="return confirm('إلغاء هذه الحركة من الملخص؟');">
+              <form method="post" class="swal-confirm-form" style="display:inline"
+                    data-swal-title="إلغاء الحركة"
+                    data-swal-text="إلغاء هذه الحركة من الملخص؟"
+                    data-swal-icon="warning">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="void_entry">
                 <input type="hidden" name="entry_id" value="{{ e.id }}">
-                <input type="hidden" name="from" value="{{ filter_from }}">
-                <input type="hidden" name="to" value="{{ filter_to }}">
-                <input type="hidden" name="kind" value="{{ filter_kind }}">
+                {% include "frontend/partials/treasury_scope_hidden.html" %}
                 <button type="submit" class="btn btn-o btn-sm">إلغاء</button>
               </form>
               {% endif %}
@@ -205,6 +225,20 @@
   </div>
 </div>
 <script>
+(function () {
+  var scopeSel = document.getElementById("treasuryScopeMode");
+  if (scopeSel) {
+    scopeSel.addEventListener("change", function () {
+      var shift = scopeSel.value === "shift";
+      document.querySelectorAll(".treasury-filter-shift").forEach(function (el) {
+        el.style.display = shift ? "" : "none";
+      });
+      document.querySelectorAll(".treasury-filter-date").forEach(function (el) {
+        el.style.display = shift ? "none" : "";
+      });
+    });
+  }
+})();
 (function () {
   var typeEl = document.getElementById("treasuryEntryType");
   var wrap = document.getElementById("treasuryCategoryWrap");

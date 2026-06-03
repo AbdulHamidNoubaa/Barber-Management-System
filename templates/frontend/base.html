@@ -906,5 +906,8 @@
     {% block content %}{% endblock %}
   </main>
   {% include "frontend/partials/icon_sprite.html" %}
+  {% include "frontend/partials/ui_modal_global.html" %}
+  {% include "frontend/partials/swal_global.html" %}
+  {% block extra_scripts %}{% endblock %}
 </body>
 </html>

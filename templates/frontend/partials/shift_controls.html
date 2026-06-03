@@ -3,7 +3,7 @@
   {% if current_shift %}
   <div class="shift-controls-active">
     <span class="shift-controls-dot on"></span>
-    <span><strong>{{ current_shift.name }}</strong> · منذ {{ current_shift.started_at|date:"d/m H:i" }}</span>
+    <span><strong>{{ current_shift.name }}</strong>{% if current_shift_range %} · {{ current_shift_range }}{% else %} · منذ {{ current_shift.started_at|date:"d/m H:i" }}{% endif %}</span>
     {% if can_close_shift %}
     <form method="post" class="shift-controls-form" onsubmit="return confirm('إغلاق هذا الشفت؟ يمكنك فتح شفت جديد بعد ذلك.')">
       {% csrf_token %}

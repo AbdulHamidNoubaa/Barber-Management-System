@@ -4,23 +4,6 @@
 {% block header_subtitle %}{{ recent_page.paginator.count|default:0 }} نتيجة — يظهر اسم الحلاق مع كل معاملة{% endblock %}
 
 {% block extra_head %}
-<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-  function swalAlert(title, text, icon) {
-    if (typeof Swal !== 'undefined') Swal.fire({ title: title, text: text, icon: icon || 'info', confirmButtonColor: '#1e40af' });
-    else alert(text || title);
-  }
-  function swalConfirm(form, title, text, icon) {
-    if (typeof Swal === 'undefined') return confirm(text || title);
-    Swal.fire({
-      title: title, text: text, icon: icon || 'question',
-      showCancelButton: true, confirmButtonText: 'نعم', cancelButtonText: 'إلغاء',
-      confirmButtonColor: '#1e40af', cancelButtonColor: '#dc2626'
-    }).then(function (r) { if (r.isConfirmed) form.submit(); });
-    return false;
-  }
-</script>
 <style>
 .tx-log-head {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
@@ -152,7 +135,10 @@
       <div class="field">
         <label>الفترة</label>
         <select name="period" id="periodSelect">
-          <option value="today" {% if filters.period == "today" %}selected{% endif %}>اليوم</option>
+          {% if current_shift %}
+          <option value="shift" {% if filters.period == "shift" %}selected{% endif %}>الشفت الحالي</option>
+          {% endif %}
+          <option value="today" {% if filters.period == "today" %}selected{% endif %}>اليوم (تقويمي)</option>
           <option value="all" {% if filters.period == "all" %}selected{% endif %}>الكل</option>
           <option value="custom" {% if filters.period == "custom" %}selected{% endif %}>مخصص</option>
         </select>
@@ -205,5 +191,5 @@
 })();
 </script>
 
-{% include "frontend/partials/ticket_edit_modal.html" with active_barbers=active_barbers pos_services=pos_services return_qs=return_qs %}
+{% include "frontend/partials/ticket_edit_modal.html" with active_barbers=active_barbers pos_services=pos_services return_qs=query_string %}
 {% endblock %}

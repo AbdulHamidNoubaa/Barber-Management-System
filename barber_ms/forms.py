@@ -64,23 +64,16 @@ class QueueTicketForm(forms.Form):
 
 
 class TicketEditForm(forms.Form):
-    """تعديل وصل / معاملة مكتملة."""
+    """تعديل وصل كامل: حلاق، خدمات متعددة، دفع، حالة."""
 
     barber_id = forms.ModelChoiceField(
         queryset=BarberProfile.objects.none(),
         label="الحلاق",
     )
-    service_id = forms.ModelChoiceField(
+    service_ids = forms.ModelMultipleChoiceField(
         queryset=Service.objects.none(),
-        required=False,
-        label="الخدمة",
-    )
-    amount = forms.DecimalField(
-        required=False,
-        min_value=Decimal("0"),
-        max_digits=12,
-        decimal_places=2,
-        label="المبلغ",
+        label="الخدمات",
+        error_messages={"required": "اختر خدمة واحدة على الأقل."},
     )
     payment_method = forms.ChoiceField(
         choices=[(PaymentMethod.CASH, "نقدي"), (PaymentMethod.CARD, "بطاقة")],
@@ -94,16 +87,27 @@ class TicketEditForm(forms.Form):
         self.fields["barber_id"].queryset = BarberProfile.objects.filter(is_active=True).select_related(
             "user"
         )
-        self.fields["service_id"].queryset = Service.objects.filter(is_active=True).order_by("name")
-        self.fields["service_id"].empty_label = "—"
+        self.fields["service_ids"].queryset = Service.objects.filter(is_active=True).order_by("name")
         for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "field-input")
+            if hasattr(field.widget, "attrs"):
+                field.widget.attrs.setdefault("class", "field-input")
         if ticket and not self.is_bound:
             self.fields["barber_id"].initial = ticket.barber_id
-            self.fields["service_id"].initial = ticket.service_id
-            self.fields["amount"].initial = ticket.total if ticket.total > 0 else None
+            item_ids = list(ticket.items.values_list("service_id", flat=True))
+            if not item_ids and ticket.service_id:
+                item_ids = [ticket.service_id]
+            self.fields["service_ids"].initial = item_ids
             self.fields["payment_method"].initial = ticket.payment_method or PaymentMethod.CASH
             self.fields["status"].initial = ticket.status
+
+    def clean_service_ids(self):
+        services = self.cleaned_data.get("service_ids")
+        if not services:
+            raise ValidationError("اختر خدمة واحدة على الأقل.")
+        for svc in services:
+            if svc.base_price is None:
+                raise ValidationError(f"الخدمة «{svc.name}» بدون سعر — حدّثها من الإعدادات.")
+        return services
 
 
 class _BaseUserCreateForm(forms.ModelForm):

@@ -419,7 +419,10 @@
                   <input type="hidden" name="tpl_id" value="{{ tpl.id }}">
                   <button type="submit" class="btn btn-o btn-sm">{% if tpl.is_active %}تعطيل{% else %}تفعيل{% endif %}</button>
                 </form>
-                <form method="post" onsubmit="return confirm('حذف هذا النوع؟')">
+                <form method="post" class="swal-confirm-form"
+                      data-swal-title="حذف نوع الشفت"
+                      data-swal-text="حذف هذا النوع؟"
+                      data-swal-icon="warning">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="delete_shift_template">
                   <input type="hidden" name="tpl_id" value="{{ tpl.id }}">
@@ -497,7 +500,10 @@
                   <td style="white-space:nowrap">
                     {% if not svc.is_active %}<span class="muted" style="font-size:.7rem">موقوف · </span>{% endif %}
                     <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="toggle_service"><input type="hidden" name="service_id" value="{{ svc.id }}"><button type="submit" class="btn btn-o btn-sm">{% if svc.is_active %}إيقاف{% else %}تفعيل{% endif %}</button></form>
-                    <form method="post" style="display:inline" onsubmit="return confirm('حذف الخدمة «{{ svc.name|escapejs }}»؟')">{% csrf_token %}<input type="hidden" name="action" value="delete_service"><input type="hidden" name="service_id" value="{{ svc.id }}"><button type="submit" class="btn btn-d btn-sm">حذف</button></form>
+                    <form method="post" class="swal-confirm-form" style="display:inline"
+                          data-swal-title="حذف الخدمة"
+                          data-swal-text="حذف الخدمة «{{ svc.name|escapejs }}»؟"
+                          data-swal-icon="warning">{% csrf_token %}<input type="hidden" name="action" value="delete_service"><input type="hidden" name="service_id" value="{{ svc.id }}"><button type="submit" class="btn btn-d btn-sm">حذف</button></form>
                   </td>
                 </tr>
                 {% empty %}

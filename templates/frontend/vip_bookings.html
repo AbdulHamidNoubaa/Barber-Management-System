@@ -114,7 +114,10 @@
                 <a href="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="btn btn-o btn-sm">عرض</a>
                 {% if is_admin %}
                 <a href="{% url 'frontend:vip:edit_vip_booking' b.id %}" class="btn btn-o btn-sm">تعديل</a>
-                <form method="post" action="{% url 'frontend:vip:vip_booking_detail' b.id %}" style="display:inline" onsubmit="return confirm('حذف الحجز؟')">
+                <form method="post" action="{% url 'frontend:vip:vip_booking_detail' b.id %}" class="swal-confirm-form" style="display:inline"
+                      data-swal-title="حذف الحجز"
+                      data-swal-text="حذف حجز VIP نهائياً؟ لا يمكن التراجع."
+                      data-swal-icon="warning">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="delete">
                   <button type="submit" class="btn btn-d btn-sm">حذف</button>

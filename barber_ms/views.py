@@ -42,10 +42,20 @@ from core.barber_activity import (
     vip_bookings_for_barber,
 )
 from core.barber_close import (
-    barber_day_summary,
+    barber_shift_summary,
     close_barber_account,
     month_barber_summary,
+    month_barber_summary_by_shifts,
     month_grand_total,
+    month_grand_total_by_shifts,
+)
+from core.shift_scope import (
+    filter_tickets,
+    filter_treasury_entries,
+    filter_vip_bookings,
+    parse_report_scope,
+    scope_querystring_params,
+    shifts_overlapping_month,
 )
 from core.models import (
     CloseLedger,
@@ -69,7 +79,14 @@ from core.models import (
 )
 from core.customer_utils import get_or_create_customer
 from core.receipt_utils import complete_ticket_sale
-from core.shift_utils import get_open_shift, open_shift, require_open_shift, shift_ui_context
+from core.shift_utils import (
+    get_open_shift,
+    open_shift,
+    recent_shifts_for_close,
+    require_open_shift,
+    shift_display_range,
+    shift_ui_context,
+)
 
 
 def _is_admin(user):
@@ -350,6 +367,7 @@ def dashboard(request):
         "commission": commission,
         "net_profit": revenue - commission,
         "current_shift": current_shift,
+        "current_shift_range": shift_ctx.get("current_shift_range", ""),
         "can_close": can_close,
         "can_close_shift": can_close,
         "next_shift_label": shift_ctx["next_shift_label"],
@@ -377,7 +395,11 @@ def _handle_ticket_edit_delete(request, redirect_to):
         return redirect_to
 
     try:
-        ticket = Ticket.objects.select_related("customer", "barber", "shift").get(pk=ticket_id)
+        ticket = (
+            Ticket.objects.select_related("customer", "barber", "shift")
+            .prefetch_related("items__service")
+            .get(pk=ticket_id)
+        )
     except Ticket.DoesNotExist:
         messages.error(request, "لم يتم العثور على المعاملة.")
         return redirect_to
@@ -425,15 +447,21 @@ def _redirect_transactions_log(request):
 
 
 def _queue_filters(request) -> dict:
+    period = (request.GET.get("period") or "").strip()
+    if not period:
+        period = "shift" if get_open_shift() else "today"
+    shift_only = request.GET.get("shift_only") == "1"
+    if period == "shift":
+        shift_only = True
     return {
         "q": (request.GET.get("q") or "").strip(),
         "barber": (request.GET.get("barber") or "").strip(),
         "status": (request.GET.get("status") or "").strip(),
-        "period": (request.GET.get("period") or "today").strip(),
+        "period": period,
         "from": (request.GET.get("from") or "").strip(),
         "to": (request.GET.get("to") or "").strip(),
         "pay": (request.GET.get("pay") or "").strip(),
-        "shift_only": request.GET.get("shift_only") == "1",
+        "shift_only": shift_only,
     }
 
 
@@ -450,14 +478,16 @@ def _apply_ticket_filters(qs, flt: dict, *, open_shift=None):
         qs = qs.filter(status=flt["status"])
     if flt["pay"] in (PaymentMethod.CASH, PaymentMethod.CARD):
         qs = qs.filter(payment_method=flt["pay"])
-    if flt["period"] == "today":
+    if flt["period"] == "shift" and open_shift:
+        qs = qs.filter(shift=open_shift)
+    elif flt["period"] == "today":
         qs = qs.filter(created_at__date=timezone.localdate())
     elif flt["period"] == "custom":
         if flt["from"]:
             qs = qs.filter(created_at__date__gte=flt["from"])
         if flt["to"]:
             qs = qs.filter(created_at__date__lte=flt["to"])
-    if flt["shift_only"] and open_shift:
+    elif flt["shift_only"] and open_shift:
         qs = qs.filter(shift=open_shift)
     return qs
 
@@ -534,8 +564,12 @@ def queue_view(request):
                     ticket, amount=amount, method=method, user=request.user
                 )
                 messages.success(request, "تم إصدار الوصل — جاري الطباعة.")
+                from urllib.parse import quote
+
+                ret = quote(reverse("frontend:queue"), safe="")
                 return redirect(
-                    f"{reverse('frontend:vip:receipt_print', args=[receipt.id])}?auto_print=1"
+                    f"{reverse('frontend:vip:receipt_print', args=[receipt.id])}"
+                    f"?auto_print=1&return={ret}"
                 )
             for _field, errors in form.errors.items():
                 for err in errors:
@@ -573,7 +607,7 @@ def queue_view(request):
         {
             "form": form,
             "recent_completed": recent_completed,
-            "pos_services": Service.objects.filter(is_active=True).order_by("name"),
+            "pos_services": _active_services_qs(),
             "filters": flt,
             "queue_stats": stats,
             "history_count": stats["total"],
@@ -633,7 +667,7 @@ def transactions_log_view(request):
     shift_ctx = shift_ui_context(request.user)
     current_shift = shift_ctx["current_shift"]
     base_qs = Ticket.objects.select_related("customer", "barber__user").prefetch_related(
-        "receipts"
+        "receipts", "items__service"
     )
     filtered_qs = _apply_ticket_filters(base_qs, flt, open_shift=current_shift)
     history_qs = filtered_qs.order_by("-created_at")
@@ -657,11 +691,15 @@ def transactions_log_view(request):
             **shift_ctx,
             "ticket_status_choices": TicketStatus.choices,
             "return_qs": request.GET.urlencode(),
-            "pos_services": Service.objects.filter(is_active=True).order_by("name"),
+            "pos_services": _active_services_qs(),
             "ticket_edit_form": TicketEditForm(),
             "is_admin": _is_admin(request.user),
         },
     )
+
+
+def _active_services_qs():
+    return Service.objects.filter(is_active=True).order_by("name")
 
 
 def _parse_filter_dates(request):
@@ -730,16 +768,23 @@ def barber_operations_view(request, barber_id: int):
             return _handle_ticket_edit_delete(request, _back(request))
 
     from_date, to_date, period = _parse_filter_dates(request)
+    filter_shift = None
+    shift_id = (request.GET.get("shift_id") or "").strip()
+    if period == "shift" and shift_id.isdigit():
+        filter_shift = get_object_or_404(Shift, pk=int(shift_id))
     tickets_qs = (
         Ticket.objects.filter(barber=barber)
-        .select_related("customer", "barber__user", "service")
+        .select_related("customer", "barber__user", "service", "shift")
         .prefetch_related("receipts", "items__service")
         .order_by("-completed_at", "-created_at")
     )
-    if from_date:
-        tickets_qs = tickets_qs.filter(completed_at__date__gte=from_date)
-    if to_date:
-        tickets_qs = tickets_qs.filter(completed_at__date__lte=to_date)
+    if filter_shift:
+        tickets_qs = tickets_qs.filter(shift=filter_shift)
+    else:
+        if from_date:
+            tickets_qs = tickets_qs.filter(completed_at__date__gte=from_date)
+        if to_date:
+            tickets_qs = tickets_qs.filter(completed_at__date__lte=to_date)
     status = (request.GET.get("status") or "COMPLETED").strip()
     if status == "ALL":
         pass
@@ -749,7 +794,18 @@ def barber_operations_view(request, barber_id: int):
         tickets_qs = tickets_qs.filter(status=TicketStatus.COMPLETED)
         status = TicketStatus.COMPLETED
 
-    summary = barber_combined_stats(barber, from_date, to_date)
+    if filter_shift:
+        shift_stats = barber_shift_summary(barber, filter_shift)
+        summary = {
+            "tickets": shift_stats["ticket_count"],
+            "revenue": shift_stats["total_revenue"],
+            "commission": shift_stats["total_commission"],
+            "vip_bookings": 0,
+            "vip_revenue": 0,
+            "vip_commission": 0,
+        }
+    else:
+        summary = barber_combined_stats(barber, from_date, to_date)
     paginator, tickets_page = paginate_queryset(
         request, tickets_qs, per_page=BARBER_TX_PER_PAGE
     )
@@ -780,11 +836,13 @@ def barber_operations_view(request, barber_id: int):
             "filter_from": from_date,
             "filter_to": to_date,
             "filter_period": period,
+            "filter_shift": filter_shift,
+            "filter_shift_range": shift_display_range(filter_shift) if filter_shift else "",
             "summary": summary,
             "ticket_status_choices": TicketStatus.choices,
             "is_admin": _is_admin(request.user),
             "active_barbers": BarberProfile.objects.filter(is_active=True).order_by("name"),
-            "pos_services": Service.objects.filter(is_active=True).order_by("name"),
+            "pos_services": _active_services_qs(),
         },
     )
 
@@ -854,7 +912,9 @@ def barber_log_view(request):
     if not from_d and not to_d:
         from_d = to_d = today
 
-    qs = Ticket.objects.select_related("customer", "barber__user").order_by("-created_at")
+    qs = Ticket.objects.select_related("customer", "barber__user").prefetch_related(
+        "items__service", "receipts"
+    ).order_by("-created_at")
 
     if selected_barber_id:
         qs = qs.filter(barber_id=selected_barber_id)
@@ -925,24 +985,22 @@ def barber_log_view(request):
             "ticket_edit_form": TicketEditForm(),
             "is_admin": True,
             "active_barbers": barbers,
+            "pos_services": _active_services_qs(),
         },
     )
 
 
 def _treasury_filter_redirect(request) -> str:
-    """بعد POST نعيد نفس نطاق التصفية (من/إلى/نوع)."""
+    """بعد POST نعيد نفس نطاق التصفية (شفت أو تاريخ + نوع)."""
     from urllib.parse import urlencode
 
     from django.urls import reverse
 
     src = request.POST if request.method == "POST" else request.GET
-    q = {}
-    if src.get("from"):
-        q["from"] = src["from"].strip()
-    if src.get("to"):
-        q["to"] = src["to"].strip()
+    scope = parse_report_scope(request, prefer_open_shift=False)
+    q = scope_querystring_params(scope)
     if src.get("kind"):
-        q["kind"] = src["kind"].strip()
+        q["kind"] = src.get("kind").strip()
     base = reverse("frontend:treasury")
     return f"{base}?{urlencode(q)}" if q else base
 
@@ -954,31 +1012,23 @@ def treasury_view(request):
         messages.error(request, "الخزنة متاحة للكاشير والمدير فقط.")
         return redirect("frontend:dashboard")
 
-    today = timezone.localdate()
-    from_date = request.GET.get("from", "").strip()
-    to_date = request.GET.get("to", "").strip()
+    scope = parse_report_scope(request, prefer_open_shift=True)
     kind = request.GET.get("kind", "").strip()
+    shift_choices = recent_shifts_for_close(limit=50)
 
-    def apply_date_filters(qs):
-        if from_date:
-            qs = qs.filter(created_at__date__gte=from_date)
-        if to_date:
-            qs = qs.filter(created_at__date__lte=to_date)
-        if not from_date and not to_date:
-            qs = qs.filter(created_at__date=today)
-        return qs
+    ticket_base = Ticket.objects.filter(status=TicketStatus.COMPLETED)
+    vip_base = VIPBooking.objects.filter(status="completed")
+    treasury_base = TreasuryEntry.objects.filter(is_voided=False)
 
     barber_rev = (
-        apply_date_filters(Ticket.objects.filter(status="COMPLETED")).aggregate(v=Sum("total"))["v"]
-        or Decimal("0")
+        filter_tickets(ticket_base, scope).aggregate(v=Sum("total"))["v"] or Decimal("0")
     )
     vip_rev = (
-        apply_date_filters(VIPBooking.objects.filter(status="completed")).aggregate(v=Sum("paid_amount"))["v"]
-        or Decimal("0")
+        filter_vip_bookings(vip_base, scope).aggregate(v=Sum("paid_amount"))["v"] or Decimal("0")
     )
     total_revenue = barber_rev + vip_rev
 
-    summary_base = apply_date_filters(TreasuryEntry.objects.filter(is_voided=False))
+    summary_base = filter_treasury_entries(treasury_base, scope)
     total_expense = (
         summary_base.filter(entry_type=TreasuryEntryType.EXPENSE).aggregate(v=Sum("amount"))["v"]
         or Decimal("0")
@@ -989,10 +1039,11 @@ def treasury_view(request):
     )
     net_movement = total_revenue + total_deposit - total_expense
 
-    list_qs = apply_date_filters(
+    list_qs = filter_treasury_entries(
         TreasuryEntry.objects.select_related(
             "category", "recorded_by", "shift", "voided_by"
-        )
+        ),
+        scope,
     )
     if kind == "expense":
         list_qs = list_qs.filter(entry_type=TreasuryEntryType.EXPENSE)
@@ -1105,8 +1156,12 @@ def treasury_view(request):
                 "total_deposit": total_deposit,
                 "net_movement": net_movement,
             },
-            "filter_from": from_date,
-            "filter_to": to_date,
+            "filter_scope": scope.mode,
+            "filter_shift": scope.shift,
+            "filter_shift_range": shift_display_range(scope.shift) if scope.shift else "",
+            "shift_choices": shift_choices,
+            "filter_from": scope.from_date.isoformat() if scope.from_date else "",
+            "filter_to": scope.to_date.isoformat() if scope.to_date else "",
             "filter_kind": kind,
             "entry_form": entry_form,
             "category_form": category_form,
@@ -1446,36 +1501,50 @@ def daily_close_view(request):
         messages.error(request, "ليس لديك صلاحية الوصول.")
         return redirect("frontend:dashboard")
 
-    close_date = timezone.localdate()
-    raw = request.GET.get("date") or request.POST.get("close_date")
-    if raw:
-        try:
-            close_date = datetime.date.fromisoformat(str(raw)[:10])
-        except ValueError:
-            pass
+    shift_choices = recent_shifts_for_close()
+    selected_shift = None
+    shift_id = request.GET.get("shift_id") or request.POST.get("shift_id")
+    if shift_id:
+        selected_shift = Shift.objects.filter(pk=shift_id).first()
+    if not selected_shift and shift_choices:
+        selected_shift = shift_choices[0]
 
-    if request.method == "POST":
+    if request.method == "POST" and selected_shift:
         action = request.POST.get("action")
         barber_id = request.POST.get("barber_id")
         if action == "close_one" and barber_id:
             bp = get_object_or_404(BarberProfile, pk=barber_id)
             try:
-                close_barber_account(bp, close_date, request.user)
-                messages.success(request, f"تم إغلاق حساب {bp.display_name} ليوم {close_date}.")
+                close_barber_account(bp, selected_shift, request.user)
+                messages.success(
+                    request,
+                    f"تم إغلاق حساب {bp.display_name} للشفت «{selected_shift.name}».",
+                )
             except ValueError as e:
                 messages.warning(request, str(e))
         elif action == "close_all" and _is_admin(request.user):
             closed = 0
             for bp in BarberProfile.objects.filter(is_active=True):
                 try:
-                    close_barber_account(bp, close_date, request.user)
+                    close_barber_account(bp, selected_shift, request.user)
                     closed += 1
                 except ValueError:
                     pass
-            messages.success(request, f"تم إغلاق {closed} حلاق/حلاقين ليوم {close_date}.")
-        return redirect(f"{reverse('frontend:daily_close')}?date={close_date.isoformat()}")
+            messages.success(
+                request,
+                f"تم إغلاق {closed} حلاق/حلاقين للشفت «{selected_shift.name}».",
+            )
+        if selected_shift:
+            return redirect(
+                f"{reverse('frontend:daily_close')}?shift_id={selected_shift.pk}"
+            )
 
-    summaries = [barber_day_summary(bp, close_date) for bp in BarberProfile.objects.order_by("name")]
+    summaries = []
+    if selected_shift:
+        summaries = [
+            barber_shift_summary(bp, selected_shift)
+            for bp in BarberProfile.objects.order_by("name")
+        ]
     totals = {
         "revenue": sum(s["total_revenue"] for s in summaries),
         "commission": sum(s["total_commission"] for s in summaries),
@@ -1487,7 +1556,9 @@ def daily_close_view(request):
         request,
         "frontend/daily_close.html",
         {
-            "close_date": close_date,
+            "selected_shift": selected_shift,
+            "shift_range": shift_display_range(selected_shift) if selected_shift else "",
+            "shift_choices": shift_choices,
             "summaries": summaries,
             "totals": totals,
             "is_admin": _is_admin(request.user),
@@ -1508,8 +1579,16 @@ def monthly_close_view(request):
     except (TypeError, ValueError):
         year, month = today.year, today.month
 
-    rows = month_barber_summary(year, month)
-    grand = month_grand_total(year, month)
+    report_scope = (request.GET.get("scope") or "shift").strip().lower()
+    if report_scope == "date":
+        rows = month_barber_summary(year, month)
+        grand = month_grand_total(year, month)
+        scope_label = "حسب تاريخ إتمام الواصلات (تقويمي)"
+    else:
+        rows = month_barber_summary_by_shifts(year, month)
+        grand = month_grand_total_by_shifts(year, month)
+        scope_label = "حسب الشفتات التي تقاطع الشهر (زمني)"
+    month_shifts = list(shifts_overlapping_month(year, month))
 
     return render(
         request,
@@ -1519,5 +1598,8 @@ def monthly_close_view(request):
             "month": month,
             "rows": rows,
             "grand": grand,
+            "report_scope": report_scope,
+            "scope_label": scope_label,
+            "month_shifts": month_shifts,
         },
     )

@@ -368,19 +368,30 @@ def generate_receipt(request, receipt_type=None, object_id=None):
     return render(request, 'frontend/generate_receipt.html', context)
 
 
+def _safe_return_path(request, *, default: str) -> str:
+    """مسار نسبي آمن للعودة بعد إغلاق الوصل (window.close لا يعمل في نفس التبويب)."""
+    raw = (request.GET.get("return") or request.GET.get("next") or "").strip()
+    if raw.startswith("/") and not raw.startswith("//"):
+        return raw
+    return default
+
+
 @login_required
 def receipt_print(request, receipt_id):
     """طباعة الوصل"""
+    from django.urls import reverse
+
     receipt = get_object_or_404(Receipt, id=receipt_id)
-    
-    # يمكن إرجاع HTML للطباعة أو PDF
-    auto_print = request.GET.get('auto_print') in ('1', 'true', 'yes')
+
+    auto_print = request.GET.get("auto_print") in ("1", "true", "yes")
+    close_url = _safe_return_path(request, default=reverse("frontend:queue"))
     context = {
-        'receipt': receipt,
-        'print_mode': True,
-        'auto_print': auto_print,
+        "receipt": receipt,
+        "print_mode": True,
+        "auto_print": auto_print,
+        "close_url": close_url,
     }
-    return render(request, 'frontend/receipt_print.html', context)
+    return render(request, "frontend/receipt_print.html", context)
 
 
 @login_required

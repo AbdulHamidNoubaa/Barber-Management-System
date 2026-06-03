@@ -1,20 +1,21 @@
 <div id="ticketEditModal" class="ui-modal" role="dialog" aria-modal="true" hidden>
-  <div class="ui-modal-box">
+  <div class="ui-modal-box" style="max-width:520px">
     <div class="ui-modal-hd">
-      <div><h3>تعديل الوصل</h3><p>الحلاق · الخدمة · المبلغ</p></div>
-      <button type="button" class="ui-modal-x" id="ticketEditClose" data-close-modal>✕</button>
+      <div><h3>تعديل الوصل</h3><p>الحلاق · الخدمات · الدفع · الحالة</p></div>
+      <button type="button" class="ui-modal-x" data-close-modal aria-label="إغلاق">✕</button>
     </div>
     <div class="ui-modal-bd">
       <form method="post" id="ticketEditForm">
         {% csrf_token %}
         <input type="hidden" name="action" value="edit_ticket">
         <input type="hidden" name="ticket_id" id="ticketEditId" value="">
-        <input type="hidden" name="_return_qs" value="{{ return_qs|default:'' }}">
+        <input type="hidden" name="_return_qs" id="ticketEditReturnQs" value="{{ return_qs|default:'' }}">
         {% if barber_redirect %}<input type="hidden" name="barber_redirect" value="{{ barber_redirect }}">{% endif %}
         {% if ret_barber %}<input type="hidden" name="_ret_barber" value="{{ ret_barber }}">{% endif %}
         {% if ret_from %}<input type="hidden" name="_ret_from" value="{{ ret_from }}">{% endif %}
         {% if ret_to %}<input type="hidden" name="_ret_to" value="{{ ret_to }}">{% endif %}
         {% if ret_page %}<input type="hidden" name="_ret_page" value="{{ ret_page }}">{% endif %}
+
         <div class="field" style="margin-bottom:.55rem">
           <label class="pos-lbl">الحلاق</label>
           <select name="barber_id" id="ticketEditBarber" class="field-input" required>
@@ -23,20 +24,30 @@
             {% endfor %}
           </select>
         </div>
+
         <div class="field" style="margin-bottom:.55rem">
-          <label class="pos-lbl">الخدمة</label>
-          <select name="service_id" id="ticketEditService" class="field-input">
-            <option value="">—</option>
+          <label class="pos-lbl">الخدمات <span style="font-weight:500;color:var(--muted)">(حدّد أو أزل)</span></label>
+          {% if pos_services %}
+          <div id="ticketEditServices" class="ticket-edit-svc-grid">
             {% for svc in pos_services %}
-            <option value="{{ svc.pk }}">{{ svc.name }} — {{ svc.base_price|floatformat:0 }}</option>
+            <label class="ticket-edit-svc-chip">
+              <input type="checkbox" name="service_ids" value="{{ svc.pk }}"
+                     data-price="{{ svc.base_price|floatformat:0 }}">
+              <span>{{ svc.name }}</span>
+              <span class="ticket-edit-svc-price">{{ svc.base_price|floatformat:0 }} {{ sys.currency|default:"د" }}</span>
+            </label>
             {% endfor %}
-          </select>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.55rem">
-          <div class="field">
-            <label class="pos-lbl">المبلغ</label>
-            <input type="number" name="amount" id="ticketEditAmount" class="field-input" min="0" step="1">
           </div>
+          {% else %}
+          <p class="message error" style="margin:0;font-size:.78rem">لا توجد خدمات نشطة — أضفها من الإعدادات أولاً.</p>
+          {% endif %}
+        </div>
+
+        <div id="ticketEditTotalLine" style="font-size:.82rem;font-weight:800;color:var(--primary);margin-bottom:.55rem;padding:.45rem .6rem;background:var(--primary-light);border-radius:8px;display:none">
+          الإجمالي: <span id="ticketEditTotalVal">0</span> {{ sys.currency|default:"د" }}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.55rem">
           <div class="field">
             <label class="pos-lbl">الدفع</label>
             <select name="payment_method" id="ticketEditPay" class="field-input">
@@ -44,17 +55,20 @@
               <option value="CARD">بطاقة</option>
             </select>
           </div>
+          <div class="field">
+            <label class="pos-lbl">الحالة</label>
+            <select name="status" id="ticketEditStatus" class="field-input">
+              <option value="COMPLETED">مكتمل</option>
+              <option value="CANCELLED">ملغى</option>
+              <option value="WAITING">انتظار</option>
+              <option value="IN_PROGRESS">تنفيذ</option>
+            </select>
+          </div>
         </div>
-        <div class="field" style="margin-bottom:.75rem">
-          <label class="pos-lbl">الحالة</label>
-          <select name="status" id="ticketEditStatus" class="field-input">
-            <option value="COMPLETED">مكتمل</option>
-            <option value="CANCELLED">ملغى</option>
-          </select>
-        </div>
+
         <div style="display:flex;gap:.5rem">
-          <button type="submit" class="btn btn-p" style="flex:1">حفظ</button>
-          <button type="button" class="btn btn-o" id="ticketEditCancel" data-close-modal>إلغاء</button>
+          <button type="submit" class="btn btn-p" style="flex:1">حفظ التعديلات</button>
+          <button type="button" class="btn btn-o" data-close-modal>إلغاء</button>
         </div>
       </form>
     </div>
@@ -62,24 +76,68 @@
 </div>
 <script>
 (function () {
-  var modal = document.getElementById('ticketEditModal');
+  var modal = document.getElementById("ticketEditModal");
   if (!modal) return;
-  function openEdit(btn) {
-    document.getElementById('ticketEditId').value = btn.getAttribute('data-id') || '';
-    document.getElementById('ticketEditBarber').value = btn.getAttribute('data-barber') || '';
-    document.getElementById('ticketEditService').value = btn.getAttribute('data-service') || '';
-    document.getElementById('ticketEditAmount').value = btn.getAttribute('data-amount') || '';
-    document.getElementById('ticketEditPay').value = btn.getAttribute('data-pay') || 'CASH';
-    document.getElementById('ticketEditStatus').value = btn.getAttribute('data-status') || 'COMPLETED';
-    document.querySelectorAll('.ui-modal.is-open').forEach(function (x) {
-      if (x.id !== 'ticketEditModal') { x.classList.remove('is-open'); x.setAttribute('hidden', ''); }
+
+  function updateEditTotal() {
+    var total = 0;
+    var n = 0;
+    document.querySelectorAll("#ticketEditServices input[type=checkbox]:checked").forEach(function (cb) {
+      total += parseFloat(cb.getAttribute("data-price") || "0") || 0;
+      n++;
     });
-    modal.classList.add('is-open');
-    modal.removeAttribute('hidden');
-    document.body.style.overflow = 'hidden';
+    var line = document.getElementById("ticketEditTotalLine");
+    var val = document.getElementById("ticketEditTotalVal");
+    if (line && val) {
+      line.style.display = n ? "" : "none";
+      val.textContent = total;
+    }
   }
-  document.querySelectorAll('.js-ticket-edit').forEach(function (b) {
-    b.addEventListener('click', function () { openEdit(b); });
+
+  function openTicketEdit(btn) {
+    var idEl = document.getElementById("ticketEditId");
+    if (idEl) idEl.value = btn.getAttribute("data-id") || "";
+    var barberEl = document.getElementById("ticketEditBarber");
+    if (barberEl) barberEl.value = btn.getAttribute("data-barber") || "";
+    var payEl = document.getElementById("ticketEditPay");
+    if (payEl) payEl.value = btn.getAttribute("data-pay") || "CASH";
+    var statusEl = document.getElementById("ticketEditStatus");
+    if (statusEl) statusEl.value = btn.getAttribute("data-status") || "COMPLETED";
+    var ids = (btn.getAttribute("data-item-ids") || "").split(",").filter(Boolean);
+    document.querySelectorAll("#ticketEditServices input[type=checkbox]").forEach(function (cb) {
+      cb.checked = ids.indexOf(cb.value) >= 0;
+    });
+    updateEditTotal();
+    if (typeof closeUiModals === "function") closeUiModals();
+    modal.classList.add("is-open");
+    modal.removeAttribute("hidden");
+    document.body.style.overflow = "hidden";
+  }
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest(".js-ticket-edit");
+    if (btn) {
+      e.preventDefault();
+      openTicketEdit(btn);
+    }
   });
+
+  var svcBox = document.getElementById("ticketEditServices");
+  if (svcBox) svcBox.addEventListener("change", updateEditTotal);
+
+  var form = document.getElementById("ticketEditForm");
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      var checked = form.querySelectorAll('input[name="service_ids"]:checked');
+      if (!checked.length) {
+        e.preventDefault();
+        if (typeof swalAlert === "function") {
+          swalAlert("بيانات ناقصة", "اختر خدمة واحدة على الأقل.", "warning");
+        } else {
+          alert("اختر خدمة واحدة على الأقل.");
+        }
+      }
+    });
+  }
 })();
 </script>

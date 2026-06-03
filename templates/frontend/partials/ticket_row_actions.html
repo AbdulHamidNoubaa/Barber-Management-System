@@ -2,11 +2,13 @@
   <button type="button" class="btn btn-o btn-sm js-ticket-edit"
     data-id="{{ t.id }}"
     data-barber="{{ t.barber_id }}"
-    data-service="{{ t.service_id|default:'' }}"
-    data-amount="{% if t.total > 0 %}{{ t.total|floatformat:0 }}{% endif %}"
+    data-item-ids="{% for i in t.items.all %}{{ i.service_id }}{% if not forloop.last %},{% endif %}{% empty %}{% if t.service_id %}{{ t.service_id }}{% endif %}{% endfor %}"
     data-pay="{{ t.payment_method|default:'CASH' }}"
     data-status="{{ t.status }}">تعديل</button>
-  <form method="post" style="display:inline" onsubmit="return typeof swalConfirm==='function'?swalConfirm(this,'حذف المعاملة','حذف نهائي؟ لا يمكن التراجع.','warning'):confirm('حذف المعاملة؟')">
+  <form method="post" class="swal-confirm-form" style="display:inline"
+        data-swal-title="حذف المعاملة"
+        data-swal-text="حذف نهائي؟ لا يمكن التراجع."
+        data-swal-icon="warning">
     {% csrf_token %}
     <input type="hidden" name="action" value="delete_ticket">
     <input type="hidden" name="ticket_id" value="{{ t.id }}">

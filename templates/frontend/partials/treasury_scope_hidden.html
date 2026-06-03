@@ -1,0 +1,8 @@
+<input type="hidden" name="scope" value="{{ filter_scope }}">
+{% if filter_scope == "shift" and filter_shift %}
+<input type="hidden" name="shift_id" value="{{ filter_shift.id }}">
+{% else %}
+{% if filter_from %}<input type="hidden" name="from" value="{{ filter_from }}">{% endif %}
+{% if filter_to %}<input type="hidden" name="to" value="{{ filter_to }}">{% endif %}
+{% endif %}
+{% if filter_kind %}<input type="hidden" name="kind" value="{{ filter_kind }}">{% endif %}

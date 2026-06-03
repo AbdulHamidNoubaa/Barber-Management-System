@@ -105,5 +105,5 @@
     {% endif %}
   </div>
 </div>
-{% include "frontend/partials/ticket_edit_modal.html" with active_barbers=active_barbers ret_barber=request.GET.barber ret_from=request.GET.from ret_to=request.GET.to ret_page=request.GET.page %}
+{% include "frontend/partials/ticket_edit_modal.html" with active_barbers=active_barbers pos_services=pos_services ret_barber=request.GET.barber ret_from=request.GET.from ret_to=request.GET.to ret_page=request.GET.page %}
 {% endblock %}

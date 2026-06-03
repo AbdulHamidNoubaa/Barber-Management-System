@@ -1,32 +1,46 @@
 {% extends "frontend/base.html" %}
-{% block title %}إغلاق الحساب اليومي — {{ sys.business_name }}{% endblock %}
-{% block header_title %}إغلاق الحساب اليومي{% endblock %}
-{% block header_subtitle %}حساب أرباح كل حلاق وإغلاق اليوم{% endblock %}
+{% block title %}إغلاق حساب الحلاقين — {{ sys.business_name }}{% endblock %}
+{% block header_title %}إغلاق حساب الحلاقين{% endblock %}
+{% block header_subtitle %}تجميع حسب الشفت (من فتحه حتى إغلاقه — بلا تقسيم عند منتصف الليل){% endblock %}
 
 {% block content %}
 <div class="filter-bar card" style="padding:16px 18px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:end">
-  <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end">
-    <div class="field">
-      <label>تاريخ الإغلاق</label>
-      <input type="date" name="date" value="{{ close_date|date:'Y-m-d' }}" class="field-input">
+  <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end;flex:1">
+    <div class="field" style="min-width:220px">
+      <label>الشفت</label>
+      <select name="shift_id" class="field-input">
+        {% for s in shift_choices %}
+        <option value="{{ s.id }}" {% if selected_shift and s.id == selected_shift.id %}selected{% endif %}>
+          {{ s.name }}{% if not s.is_closed %} (مفتوح){% endif %}
+        </option>
+        {% empty %}
+        <option value="">— لا توجد شفتات —</option>
+        {% endfor %}
+      </select>
     </div>
     <button type="submit" class="btn btn-p">عرض</button>
   </form>
-  {% if is_admin %}
+  {% if selected_shift and is_admin %}
   <form method="post" style="margin-right:auto">
     {% csrf_token %}
-    <input type="hidden" name="close_date" value="{{ close_date|date:'Y-m-d' }}">
+    <input type="hidden" name="shift_id" value="{{ selected_shift.id }}">
     <input type="hidden" name="action" value="close_all">
-    <button type="submit" class="btn btn-o" onclick="return confirm('إغلاق حساب جميع الحلاقين لهذا اليوم؟')">إغلاق الكل (مدير)</button>
+    <button type="submit" class="btn btn-o" onclick="return confirm('إغلاق حساب جميع الحلاقين لهذا الشفت؟')">إغلاق الكل (مدير)</button>
   </form>
   {% endif %}
 </div>
+
+{% if selected_shift %}
+<p style="font-size:.8rem;color:var(--muted);margin:-8px 0 16px">
+  نطاق الشفت: <b>{{ shift_range }}</b>
+</p>
+{% endif %}
 
 <div class="summary-grid" style="margin-bottom:18px">
   <div class="kpi-card">
     <div class="kpi-data">
       <div class="kv">{{ totals.revenue|floatformat:0 }} <small>{{ sys.currency }}</small></div>
-      <div class="kl">إجمالي الإيراد (اليوم)</div>
+      <div class="kl">إجمالي الإيراد (الشفت)</div>
     </div>
   </div>
   <div class="kpi-card">
@@ -51,7 +65,7 @@
 
 <div class="card-accent">
   <div class="card-accent-inner">
-    <div class="section-title">تفاصيل الحلاقين — {{ close_date|date:"d/m/Y" }}</div>
+    <div class="section-title">تفاصيل الحلاقين — {% if selected_shift %}{{ selected_shift.name }}{% else %}اختر شفتاً{% endif %}</div>
     <div class="tbl-wrap" style="margin-top:12px">
       <table>
         <thead>
@@ -67,7 +81,11 @@
         <tbody>
           {% for s in summaries %}
           <tr>
-            <td><a href="{% url 'frontend:barber_operations' s.barber.id %}?period=custom&from={{ close_date|date:'Y-m-d' }}&to={{ close_date|date:'Y-m-d' }}"><b>{{ s.barber.display_name }}</b></a></td>
+            <td>
+              <a href="{% url 'frontend:barber_operations' s.barber.id %}?period=shift&shift_id={{ selected_shift.id }}">
+                <b>{{ s.barber.display_name }}</b>
+              </a>
+            </td>
             <td>{{ s.ticket_count }}</td>
             <td>{{ s.total_revenue|floatformat:0 }} {{ sys.currency }}</td>
             <td>{{ s.total_commission|floatformat:0 }} {{ sys.currency }}</td>
@@ -82,7 +100,7 @@
               {% if not s.is_closed and s.ticket_count > 0 %}
               <form method="post" style="display:inline">
                 {% csrf_token %}
-                <input type="hidden" name="close_date" value="{{ close_date|date:'Y-m-d' }}">
+                <input type="hidden" name="shift_id" value="{{ selected_shift.id }}">
                 <input type="hidden" name="action" value="close_one">
                 <input type="hidden" name="barber_id" value="{{ s.barber.id }}">
                 <button type="submit" class="btn btn-p btn-sm">إغلاق الحساب</button>
@@ -95,7 +113,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="6" class="muted" style="text-align:center;padding:24px">لا حلاقين</td></tr>
+          <tr><td colspan="6" class="muted" style="text-align:center;padding:24px">{% if selected_shift %}لا حلاقين{% else %}اختر شفتاً من القائمة{% endif %}</td></tr>
           {% endfor %}
         </tbody>
       </table>

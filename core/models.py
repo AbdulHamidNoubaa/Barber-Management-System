@@ -160,9 +160,10 @@ class Shift(TimestampedModel):
         return self.assigned_cashiers.filter(pk=user.pk).exists()
 
     def __str__(self) -> str:
+        from core.shift_utils import shift_display_range
+
         label = self.name or "شفت"
-        end = self.ended_at.isoformat(sep=" ", timespec="minutes") if self.ended_at else "مفتوح"
-        return f"{label} - {self.started_at.date()} ({end})"
+        return f"{label} ({shift_display_range(self)})"
 
 
 class CloseLedger(TimestampedModel):
@@ -693,7 +694,13 @@ class BarberDailyClose(TimestampedModel):
 
     class Meta:
         ordering = ["-close_date", "-closed_at"]
-        unique_together = [("barber", "close_date")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["barber", "shift"],
+                name="uq_barber_daily_close_per_shift",
+                condition=models.Q(shift__isnull=False),
+            ),
+        ]
         verbose_name = "إغلاق يومي للحلاق"
         verbose_name_plural = "إغلاقات يومية للحلاقين"
 

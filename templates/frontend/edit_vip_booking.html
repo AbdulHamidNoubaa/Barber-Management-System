@@ -36,7 +36,10 @@
       </div>
     </form>
     {% if is_admin %}
-    <form method="post" action="{% url 'frontend:vip:vip_booking_detail' booking.id %}" style="margin-top:12px" onsubmit="return confirm('حذف حجز VIP نهائياً؟ لا يمكن التراجع.')">
+    <form method="post" action="{% url 'frontend:vip:vip_booking_detail' booking.id %}" class="swal-confirm-form" style="margin-top:12px"
+          data-swal-title="حذف الحجز"
+          data-swal-text="حذف حجز VIP نهائياً؟ لا يمكن التراجع."
+          data-swal-icon="warning">
       {% csrf_token %}
       <input type="hidden" name="action" value="delete">
       <button type="submit" class="btn btn-d btn-sm">حذف الحجز نهائياً (مدير فقط)</button>

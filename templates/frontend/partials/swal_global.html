@@ -1,0 +1,76 @@
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+(function () {
+  function swalAlert(title, text, icon) {
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        title: title,
+        text: text,
+        icon: icon || "info",
+        confirmButtonText: "حسناً",
+        confirmButtonColor: "#1e40af",
+      });
+    } else {
+      alert(text || title);
+    }
+  }
+
+  function swalConfirm(form, title, text, icon) {
+    if (!form) return false;
+    if (typeof Swal === "undefined") {
+      if (confirm(text || title)) {
+        form.dataset.swalOk = "1";
+        form.submit();
+      }
+      return false;
+    }
+    Swal.fire({
+      title: title || "تأكيد",
+      text: text || "هل أنت متأكد؟",
+      icon: icon || "warning",
+      showCancelButton: true,
+      confirmButtonText: "نعم",
+      cancelButtonText: "إلغاء",
+      confirmButtonColor: "#1e40af",
+      cancelButtonColor: "#dc2626",
+      reverseButtons: true,
+    }).then(function (r) {
+      if (r.isConfirmed) {
+        form.dataset.swalOk = "1";
+        if (typeof form.requestSubmit === "function") {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      }
+    });
+    return false;
+  }
+
+  window.swalAlert = swalAlert;
+  window.swalConfirm = swalConfirm;
+
+  document.addEventListener(
+    "submit",
+    function (e) {
+      var form = e.target;
+      if (!form || form.tagName !== "FORM") return;
+      if (!form.classList.contains("swal-confirm-form")) return;
+      if (form.dataset.swalOk === "1") {
+        delete form.dataset.swalOk;
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      swalConfirm(
+        form,
+        form.getAttribute("data-swal-title") || "تأكيد الحذف",
+        form.getAttribute("data-swal-text") || "هل أنت متأكد؟ لا يمكن التراجع.",
+        form.getAttribute("data-swal-icon") || "warning"
+      );
+    },
+    true
+  );
+})();
+</script>

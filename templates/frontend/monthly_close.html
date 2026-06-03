@@ -1,10 +1,17 @@
 {% extends "frontend/base.html" %}
 {% block title %}إغلاق شهري — {{ sys.business_name }}{% endblock %}
 {% block header_title %}إغلاق شهري{% endblock %}
-{% block header_subtitle %}جرد شهري لكل حلاق وإجمالي المحل{% endblock %}
+{% block header_subtitle %}جرد شهري لكل حلاق — {{ scope_label }}{% endblock %}
 
 {% block content %}
 <form method="get" class="filter-bar card" style="padding:16px 18px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:end">
+  <div class="field">
+    <label>طريقة الجرد</label>
+    <select name="scope" class="field-input">
+      <option value="shift" {% if report_scope == "shift" %}selected{% endif %}>حسب الشفتات (زمني)</option>
+      <option value="date" {% if report_scope == "date" %}selected{% endif %}>حسب التاريخ التقويمي</option>
+    </select>
+  </div>
   <div class="field">
     <label>السنة</label>
     <input type="number" name="year" value="{{ year }}" min="2020" max="2100" class="field-input" style="width:100px">
@@ -15,6 +22,13 @@
   </div>
   <button type="submit" class="btn btn-p">عرض الجرد</button>
 </form>
+
+{% if report_scope == "shift" %}
+<p style="font-size:.78rem;color:var(--muted);margin:-8px 0 14px">
+  يُحسب من كل الواصلات المرتبطة بشفت يتقاطع مع {{ month }}/{{ year }}
+  ({{ month_shifts|length }} شفت{% if month_shifts|length != 1 %}ات{% endif %}).
+</p>
+{% endif %}
 
 <div class="summary-grid" style="margin-bottom:18px">
   <div class="dark-card kpi-card">
@@ -48,7 +62,7 @@
             <th>واصلات</th>
             <th>الإيراد</th>
             <th>العمولة</th>
-            <th>أيام إغلاق مسجّلة</th>
+            <th>{% if report_scope == "shift" %}إغلاقات شفت{% else %}أيام إغلاق{% endif %}</th>
           </tr>
         </thead>
         <tbody>
@@ -58,7 +72,7 @@
             <td>{{ row.ticket_count }}</td>
             <td>{{ row.revenue|floatformat:0 }} {{ sys.currency }}</td>
             <td>{{ row.commission|floatformat:0 }} {{ sys.currency }}</td>
-            <td>{{ row.days_closed }}</td>
+            <td>{{ row.shifts_closed|default:row.days_closed }}</td>
           </tr>
           {% empty %}
           <tr><td colspan="5" class="muted" style="text-align:center;padding:24px">لا بيانات</td></tr>
@@ -77,4 +91,24 @@
     </div>
   </div>
 </div>
+
+{% if report_scope == "shift" and month_shifts %}
+<div class="card-accent" style="margin-top:18px">
+  <div class="card-accent-inner">
+    <div class="section-title">الشفتات المشمولة في {{ month }}/{{ year }}</div>
+    <ul style="margin:12px 0 0;padding:0;list-style:none;font-size:.8rem">
+      {% for s in month_shifts %}
+      <li style="padding:8px 0;border-bottom:1px solid var(--border-light)">
+        <b>{{ s.name }}</b>
+        <span style="color:var(--muted);margin-inline-start:8px">
+          {{ s.started_at|date:"d/m/Y H:i" }}
+          {% if s.ended_at %}→ {{ s.ended_at|date:"d/m/Y H:i" }}{% else %}— مفتوح{% endif %}
+        </span>
+        <a href="{% url 'frontend:treasury' %}?scope=shift&shift_id={{ s.id }}" style="margin-inline-start:10px;font-size:.72rem">الخزنة</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

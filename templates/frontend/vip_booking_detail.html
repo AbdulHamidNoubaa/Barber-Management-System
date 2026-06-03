@@ -147,14 +147,29 @@
             <a href="{% url 'frontend:vip:edit_vip_booking' booking.id %}" class="btn btn-o" style="grid-column: span 2;">تعديل الحجز</a>
             {% endif %}
 
-            {% if is_admin %}
-            <button type="submit" name="action" value="delete" class="btn btn-d" style="grid-column: span 2;" onclick="return confirm('حذف حجز VIP نهائياً؟ لا يمكن التراجع.')">حذف الحجز (مدير فقط)</button>
-            {% endif %}
-            
-            {% if booking.status != 'cancelled' and booking.status != 'completed' %}
-            <button type="submit" name="action" value="cancel" class="btn btn-outline" style="grid-column: span 2; border-color: var(--danger); color: var(--danger);" onclick="return confirm('هل أنت متأكد من إلغاء الحجز؟')">إلغاء الحجز</button>
-            {% endif %}
           </form>
+
+            {% if is_admin %}
+            <form method="post" class="swal-confirm-form" style="grid-column: span 2; margin-top: 8px;"
+                  data-swal-title="حذف الحجز"
+                  data-swal-text="حذف حجز VIP نهائياً؟ لا يمكن التراجع."
+                  data-swal-icon="warning">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete">
+              <button type="submit" class="btn btn-d" style="width:100%">حذف الحجز (مدير فقط)</button>
+            </form>
+            {% endif %}
+
+            {% if booking.status != 'cancelled' and booking.status != 'completed' %}
+            <form method="post" class="swal-confirm-form" style="grid-column: span 2; margin-top: 8px;"
+                  data-swal-title="إلغاء الحجز"
+                  data-swal-text="هل أنت متأكد من إلغاء الحجز؟"
+                  data-swal-icon="warning">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="cancel">
+              <button type="submit" class="btn btn-outline" style="width:100%; border-color: var(--danger); color: var(--danger);">إلغاء الحجز</button>
+            </form>
+            {% endif %}
         </div>
       </div>
     </div>
